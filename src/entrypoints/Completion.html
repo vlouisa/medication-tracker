@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; background: #f1f5f4; color: #17352b; }
+      main { max-width: 28rem; margin: 3rem auto; padding: 1.5rem; background: white; border-radius: 1rem; }
+      h1 { font-size: 1.6rem; } p { line-height: 1.6; overflow-wrap: anywhere; }
+      button { width: 100%; padding: 1rem; border: 0; border-radius: .6rem; background: #17694e;
+        color: white; font-size: 1.1rem; cursor: pointer; }
+      button:disabled { opacity: .65; } #feedback { min-height: 1.6rem; }
+      @media (max-width: 32rem) { main { margin: 1rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <? if (error) { ?>
+        <h1>Registratie niet beschikbaar</h1><p><?= error ?></p>
+      <? } else { ?>
+        <h1 id="heading"><?= model.completed ? 'Was al geregistreerd' : 'Inname registreren' ?></h1>
+        <p><strong><?= model.medication ?></strong><br><?= model.dosage ?><br><?= model.administration ?></p>
+        <p>Gepland: <?= model.scheduled ?></p>
+        <p id="feedback" role="status" aria-live="polite"><?= model.completed ? 'Geregistreerd om ' + model.completedAt : 'Bevestig nadat u de medicatie heeft ingenomen of toegediend.' ?></p>
+        <? if (!model.completed) { ?>
+          <button id="complete" type="button" data-id="<?= model.id ?>">Ingenomen / toegediend</button>
+        <? } ?>
+      <? } ?>
+    </main>
+    <script>
+      var button = document.getElementById('complete');
+      if (button) button.addEventListener('click', function () {
+        button.disabled = true;
+        document.getElementById('feedback').textContent = 'Registreren…';
+        google.script.run.withSuccessHandler(function (result) {
+          document.getElementById('heading').textContent = result.already ? 'Was al geregistreerd' : 'Geregistreerd';
+          document.getElementById('feedback').textContent = 'Geregistreerd om ' + result.completedAt;
+          button.remove();
+        }).withFailureHandler(function () {
+          document.getElementById('feedback').textContent = 'Registreren is niet gelukt. Probeer opnieuw.';
+          button.disabled = false;
+        }).completeIntake(button.dataset.id);
+      });
+    </script>
+  </body>
+</html>
