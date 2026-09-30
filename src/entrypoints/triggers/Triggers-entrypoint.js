@@ -1,5 +1,5 @@
 /**
- * Globaal kloktrigger-entrypoint: genereert intakes voor aangeboden READY-schema's.
+ * Globaal kloktrigger-entrypoint: genereert READY-schema's en verwerkt READY_FOR_RECONCILIATION.
  * @returns {void}
  * @throws {Error} Bij configuratie- of leesfouten voor de batch; recordfouten worden in de service afgehandeld.
  */

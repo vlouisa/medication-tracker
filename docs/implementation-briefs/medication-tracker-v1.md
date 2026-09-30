@@ -3,13 +3,17 @@
 Dit is de uitvoerbare brief na refinement. De [oorspronkelijke brief](medication-tracker-v1-original.md)
 is ongewijzigd bewaard. Bij verschillen gelden de besluiten in dit document.
 
+De uitbreiding [plancorrectie en schedule history](medication-plan-correction.md) vervangt de hieronder
+beschreven v1-beperkingen rond bevroren plannen en annulering. Bij verschillen geldt die nieuwere brief.
+
 ## Doel en scope
 
 Eén Google Apps Script-deployment en één Spreadsheet bedienen precies één persoon.
 De gebruiker voert medicatieschema's in via Google Sheets op Android. Triggers maken concrete
 innamemomenten en sturen Pushover-berichten. Een afgeschermde Web App registreert de inname.
 Geen gebruikersadministratie, automatische medische beslissingen, voorraad, dashboards of Calendar.
-Annulering en automatische MISSED-bepaling vallen buiten v1.
+Annulering viel buiten de oorspronkelijke v1; de nieuwe correctieflow gebruikt CANCELLED voor vervallen momenten.
+Automatische MISSED-bepaling blijft buiten scope.
 
 ## Gebruikersflow
 
@@ -31,7 +35,7 @@ De Web App is uitsluitend toegankelijk voor het Google-account dat de deployment
 ### medication-schedules
 
 `ID, Medication, Dosage, Administration, StartDate, DurationDays, Times, Status,
-LastError, CreatedAt, UpdatedAt`
+LastError, CreatedAt, UpdatedAt, ApplicationState`
 
 Gebruiker beheert de invoervelden en kiest DRAFT/READY. Systeem beheert UUID, fouten, timestamps
 en GENERATED/ERROR. CreatedAt is het eerste systeemverwerkingsmoment, niet het begin van handmatige invoer.
@@ -49,7 +53,8 @@ NotifiedAt blijft het eerste succesvolle verzendmoment. NotificationBlockedAt vo
 technische retries, ook wanneer een uitvoering tijdens verzending wordt afgebroken.
 
 Toegang is headergestuurd. UUID's zijn de identifiers; rijnummers zijn alleen tijdelijke locaties.
-Onverwachte of ontbrekende headers worden niet automatisch gemigreerd. Extra kolommen mogen blijven bestaan.
+Ontbrekende headers worden niet automatisch gerepareerd, behalve de gerichte toevoeging van ApplicationState
+door setup bij de upgrade naar plancorrecties. Extra kolommen mogen blijven bestaan.
 
 ## Validatie en planning
 
@@ -82,13 +87,13 @@ Een schedule wordt pas GENERATED nadat alle verwachte intakes bestaan en de invo
 Een onvolledig schedule activeert geen notificaties. Een harde onderbreking kan READY laten staan;
 de volgende uitvoering kan dan veilig aanvullen. Een afgehandelde fout vereist ERROR → READY.
 
-Een GENERATED-schema wordt niet automatisch opnieuw gegenereerd. Wijziging/verwijdering is geen
-annulering van bestaande intakes. Aangeboden of gegenereerde schema's mogen niet handmatig worden aangepast.
+Een GENERATED-schema wordt niet automatisch opnieuw gegenereerd. Een correctie wordt expliciet aangeboden
+met READY_FOR_RECONCILIATION; zie de nieuwe brief. Wijzig aangeboden schema's niet tijdens verwerking.
 
 ## Notificaties en herhalingen
 
 - Selectie: PENDING of een verschuldigde NOTIFIED, zonder CompletedAt of verzendblokkering.
-- Het gekoppelde schedule moet GENERATED zijn.
+- Het gekoppelde schedule moet GENERATED zijn en ApplicationState moet leeg zijn.
 - Eerste melding zodra ScheduledAt is bereikt; triggervertraging is mogelijk.
 - Standaard **3 extra herinneringen**, telkens **20 minuten na de laatste succesvolle melding**.
 - Configuratie: REMINDER_REPEAT_COUNT (standaard 3; 0–100), REMINDER_INTERVAL_MINUTES (standaard 20; 1–10080).
@@ -111,6 +116,8 @@ onderzoekbare fouten. Er is geen automatische deblokkering of beheerknop in v1.
 - Intake: PENDING → NOTIFIED, PENDING/NOTIFIED → COMPLETED.
 - COMPLETED → COMPLETED is een no-op.
 - Herhalingen behouden NOTIFIED.
+- Uitbreiding: READY_FOR_RECONCILIATION verwerkt correcties; PENDING/NOTIFIED kunnen CANCELLED worden.
+  CANCELLED kan via een bestaande link COMPLETED worden. Zie de nieuwe brief voor reactivering en history.
 - SKIPPED en MISSED zijn gereserveerd en worden in v1 niet geproduceerd of automatisch omgezet.
 
 ## Architectuur en concurrency

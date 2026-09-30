@@ -3,7 +3,7 @@ var NotificationService = (function () {
     var intake = SheetStore.find('intakes', id);
     if (!IntakeRules.due(intake, new Date(), config)) return false;
     var schedule = SheetStore.find('schedules', intake.ScheduleID);
-    if (schedule.Status !== 'GENERATED') return false;
+    if (schedule.Status !== 'GENERATED' || schedule.ApplicationState) return false;
 
     // Eerst duurzaam blokkeren: ook een crash na verzending mag geen technische retry veroorzaken.
     intake = SheetStore.patch('intakes', intake, { NotificationBlockedAt: new Date(),

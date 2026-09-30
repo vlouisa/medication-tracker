@@ -38,11 +38,21 @@ De normale flow na inrichting is volledig mobiel; initiële autorisatie en deplo
 Maak een DRAFT-regel, vul de gegevens in en kies READY. Laat READY-regels tijdens verwerking ongemoeid.
 Bij ERROR staat de oorzaak in LastError. Corrigeer invoer en kies READY als er nog geen intakes bestaan;
 na gedeeltelijke generatie moet de oorspronkelijke planning worden hersteld.
-Verander of verwijder GENERATED-schema's niet om medicatie te stoppen: annuleren is geen v1-functie.
+Voor een plancorrectie: wijzig de planvelden van een GENERATED-schema en kies `READY_FOR_RECONCILIATION`.
+De bestaande trigger past het plan toe en legt een versie vast in `medication-schedule-history`.
+Vervallen momenten krijgen CANCELLED; uitgevoerde innames blijven behouden. Nieuwe momenten in het verleden
+worden bij correcties niet aangemaakt. Een apart commando om een heel plan te stoppen is niet toegevoegd.
+
+Wijzig aangeboden schema's niet tijdens verwerking. Bij ERROR na gedeeltelijke correctie herstelt u het
+aangeboden doelplan en kiest u opnieuw READY_FOR_RECONCILIATION. `ApplicationState` is uitsluitend voor het
+systeem: niet wissen of bewerken. Een gevulde ApplicationState blokkeert notificaties voor het schema.
 
 Het eerste Pushover-bericht bevat een link. Open deze, controleer de gegevens en druk op
 Ingenomen / toegediend nadat de medicatie daadwerkelijk is gebruikt. Alleen openen registreert niets.
 Zonder registratie volgen standaard drie extra berichten, steeds twintig minuten na de vorige succesvolle melding.
+Een oude link blijft bruikbaar wanneer het moment inmiddels CANCELLED is. De pagina toont dan dat het moment
+vervallen is; bevestig alleen een daadwerkelijk uitgevoerde inname. Dit registreert niet automatisch een
+eventueel nieuw vervangend moment.
 
 ## Verzendfouten
 
@@ -56,8 +66,28 @@ Een bestaande geldige link kan de intake nog steeds voltooien. Als nog geen beri
 kan de eigenaar de intake-UUID gebruiken in `WEB_APP_URL?action=complete&id=<UUID>` om dezelfde
 afgeschermde bevestigingspagina te openen.
 
-Wis geen PLAN_-properties: deze bewaken bevroren schema's. Een ontbrekende fingerprint bij bestaande
-intakes blokkeert herstel. Verwijder nooit bestaande intakes om een foutmelding te omzeilen.
+Wis geen PLAN_-properties: deze bewaken generatie en de laatst toegepaste planning. Een ontbrekende fingerprint
+kan herstel van bestaande gegevens blokkeren. Verwijder nooit bestaande intakes om een foutmelding te omzeilen.
+
+## Upgrade naar plancorrecties en history
+
+Deze upgrade wijzigt zowel Sheets als Web App-code. Voer onderstaande beheerhandelingen alleen expliciet uit,
+bij voorkeur eerst op een test-Spreadsheet en tijdens een beheerd uitrolmoment zonder gelijktijdig gebruik.
+
+1. Upload de nieuwe broncode. `clasp push` alleen actualiseert de bestaande Web App-versie niet.
+2. Voer `setupSpreadsheet()` uit: ApplicationState wordt aan bestaande scheduleheaders toegevoegd en de
+   history-tab wordt aangemaakt. Operationele records blijven behouden; onbekende schemafouten worden niet gerepareerd.
+3. Werk de bestaande Web App-deployment bij naar een nieuwe versie, met dezelfde URL en toegangsinstellingen.
+   Dit is nodig voor CANCELLED -> COMPLETED via eerder verzonden links.
+4. Controleer in een testomgeving correctie, statuskleuren, history en registratie via een oude link.
+   De bestaande generatie- en notificatietriggers kunnen blijven bestaan.
+
+Historie begint voor bestaande plannen bij hun eerste succesvolle correctie; oudere versies ontbreken bewust.
+Een history-rij zonder RecordedAt is een onderbroken write en nog geen gepubliceerde versie. Bied het oorspronkelijke
+doelplan opnieuw aan met dezelfde verwerkingsstatus; de toepassing maakt dezelfde rij af. Een gepubliceerde rij is
+immutable. Bewerk ApplicationState, intakes en history niet handmatig voor normale correcties.
+
+Zie de [uitgewerkte brief](implementation-briefs/medication-plan-correction.md) voor herstelregels en uitzonderingen.
 
 ## Lokale tests
 
@@ -75,6 +105,9 @@ Er zijn geen npm-dependencies nodig. De tests gebruiken geen netwerk en geen ech
 - Controleer dat uitgelogd/ander Google-account geen intakedetails kan lezen of wijzigen.
 - Controleer dat completion verdere meldingen stopt.
 - Controleer setup/triggerinstallatie opnieuw zonder dataverlies of extra triggers.
+- Corrigeer een toekomstig moment; controleer CANCELLED, nieuwe intake en precies een extra history-versie.
+- Bevestig een eerder verzonden link na annulering; controleer COMPLETED met behouden ScheduledAt.
+- Bied dezelfde correctie opnieuw aan; controleer dat geen extra intakes of history-versies ontstaan.
 - Herstel de gewenste reminderconfiguratie na de test.
 
 Apps Script-triggers en pushbezorging garanderen geen exact aflevermoment. Per uitvoering worden
@@ -84,4 +117,5 @@ maximaal 25 meldingen verstuurd; grote achterstanden lopen over meerdere uitvoer
 
 - [Apps Script Web App-toegang](https://developers.google.com/apps-script/manifest/web-app-api-executable)
 - [Apps Script locks](https://developers.google.com/apps-script/reference/lock/lock-service)
+- [Apps Script conditionele opmaak](https://developers.google.com/apps-script/reference/spreadsheet/conditional-format-rule-builder)
 - [Pushover API](https://pushover.net/api)

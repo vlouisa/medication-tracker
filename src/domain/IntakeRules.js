@@ -26,14 +26,14 @@ var IntakeRules = (function () {
 
   /**
    * Berekent de registratievelden zonder de intake te wijzigen.
-   * @param {Object} intake Intake met status PENDING, NOTIFIED of COMPLETED.
+   * @param {Object} intake Intake met status PENDING, NOTIFIED, CANCELLED of COMPLETED.
    * @param {Date} now Tijdstip van registratie.
    * @returns {?{Status: string, CompletedAt: Date, UpdatedAt: Date}} Wijzigingen, of null bij COMPLETED.
    * @throws {Error} Als de status geen registratie toestaat.
    */
   function completion(intake, now) {
     if (intake.Status === 'COMPLETED') return null;
-    if (intake.Status !== 'PENDING' && intake.Status !== 'NOTIFIED') {
+    if (intake.Status !== 'PENDING' && intake.Status !== 'NOTIFIED' && intake.Status !== 'CANCELLED') {
       throw new Error('Deze intake kan niet als uitgevoerd worden geregistreerd.');
     }
     return { Status: 'COMPLETED', CompletedAt: now, UpdatedAt: now };

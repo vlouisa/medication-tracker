@@ -1,6 +1,8 @@
 var Config = (function () {
   var SCHEDULE_HEADERS = ['ID', 'Medication', 'Dosage', 'Administration', 'StartDate',
-    'DurationDays', 'Times', 'Status', 'LastError', 'CreatedAt', 'UpdatedAt'];
+    'DurationDays', 'Times', 'Status', 'LastError', 'CreatedAt', 'UpdatedAt', 'ApplicationState'];
+  var HISTORY_HEADERS = ['ID', 'ScheduleID', 'Version', 'Medication', 'Dosage', 'Administration',
+    'StartDate', 'DurationDays', 'Times', 'ApplicationID', 'RecordedAt'];
   var INTAKE_HEADERS = ['ID', 'ScheduleID', 'Medication', 'Dosage', 'Administration',
     'ScheduledAt', 'Status', 'NotifiedAt', 'CompletedAt', 'LastError', 'CreatedAt',
     'UpdatedAt', 'ReminderCount', 'LastReminderAt', 'NotificationBlockedAt'];
@@ -22,7 +24,7 @@ var Config = (function () {
 
   /**
    * Leest Script Properties en past standaardwaarden en numerieke grenzen toe.
-   * @returns {{spreadsheetId: string, timezone: string, scheduleSheet: string, intakeSheet: string, reminderLimit: number, reminderMinutes: number, maxIntakes: number, batchSize: number, executionBudgetMs: number}} Configuratie; interval in minuten en uitvoeringsbudget in milliseconden.
+   * @returns {{spreadsheetId: string, timezone: string, scheduleSheet: string, intakeSheet: string, historySheet: string, reminderLimit: number, reminderMinutes: number, maxIntakes: number, batchSize: number, executionBudgetMs: number}} Configuratie; interval in minuten en uitvoeringsbudget in milliseconden.
    * @throws {Error} Bij een ontbrekende SPREADSHEET_ID of ongeldige herinneringsinstellingen.
    */
   function get() {
@@ -32,6 +34,7 @@ var Config = (function () {
       timezone: 'Europe/Brussels',
       scheduleSheet: 'medication-schedules',
       intakeSheet: 'medication-intakes',
+      historySheet: 'medication-schedule-history',
       reminderLimit: integer_(properties, 'REMINDER_REPEAT_COUNT', 3, 0, 100),
       reminderMinutes: integer_(properties, 'REMINDER_INTERVAL_MINUTES', 20, 1, 10080),
       maxIntakes: 2000,
@@ -65,6 +68,8 @@ var Config = (function () {
   }
 
   return { get: get, webUrl: webUrl, pushover: pushover,
+    /** @returns {string[]} Kopie van de verplichte historyheaders. */
+    historyHeaders: function () { return HISTORY_HEADERS.slice(); },
     /** @returns {string[]} Kopie van de verplichte schemaheaders in de standaardvolgorde. */
     scheduleHeaders: function () { return SCHEDULE_HEADERS.slice(); },
     /** @returns {string[]} Kopie van de verplichte intakeheaders in de standaardvolgorde. */

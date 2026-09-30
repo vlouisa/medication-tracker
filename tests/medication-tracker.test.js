@@ -259,7 +259,8 @@ test('setup and trigger installation are repeatable and preserve operational dat
   const h = generated(); const before = JSON.stringify(h.records('intakes'));
   h.context.setupSpreadsheet(); h.context.setupSpreadsheet();
   assert.equal(JSON.stringify(h.records('intakes')), before);
-  assert.equal(h.sheets['medication-schedules'].protections.length, 4);
+  assert.equal(h.sheets['medication-schedules'].protections.length, 5);
+  assert.equal(h.sheets['medication-schedule-history'].protections.length, 1);
   assert.equal(h.sheets['medication-intakes'].protections.length, 1);
   h.context.installMedicationTriggers(); h.context.installMedicationTriggers();
   assert.equal(h.triggers.length, 2); assert.deepEqual(h.triggers.map(t => t.minutes), [5, 1]);

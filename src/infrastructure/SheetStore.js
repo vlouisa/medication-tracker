@@ -37,16 +37,19 @@ var SheetStore = (function () {
 
   function table_(kind) {
     var config = Config.get();
-    var schedule = kind === 'schedules';
-    var name = schedule ? config.scheduleSheet : config.intakeSheet;
+    var definitions = { schedules: [config.scheduleSheet, Config.scheduleHeaders()],
+      intakes: [config.intakeSheet, Config.intakeHeaders()], history: [config.historySheet, Config.historyHeaders()] };
+    var definition = definitions[kind];
+    if (!definition) throw new Error('Onbekende tabel.');
+    var name = definition[0];
     var sheet = spreadsheet().getSheetByName(name);
     if (!sheet) throw new Error('Ontbrekende tab: ' + name + '. Voer setupSpreadsheet uit.');
-    return { sheet: sheet, schema: headers(sheet, schedule ? Config.scheduleHeaders() : Config.intakeHeaders()) };
+    return { sheet: sheet, schema: headers(sheet, definition[1]) };
   }
 
   /**
    * Leest niet-lege records op headernaam; celwaarden behouden hun Apps Script-type.
-   * @param {'schedules'|'intakes'} kind Te lezen tabel.
+   * @param {'schedules'|'intakes'|'history'} kind Te lezen tabel; history zonder RecordedAt is nog niet gepubliceerd.
    * @returns {Object[]} Records met _row als tijdelijke, eengebaseerde rijlocatie; gebruik ID als identifier.
    * @throws {Error} Bij ongeldige tabelstructuur, dubbele IDs of een intake zonder ID.
    */
@@ -65,15 +68,15 @@ var SheetStore = (function () {
       if (record.ID) {
         if (ids.has(record.ID)) throw new Error('Dubbele UUID in ' + kind + '. Herstel de technische gegevens.');
         ids.add(record.ID);
-      } else if (kind === 'intakes') {
-        throw new Error('Intake zonder UUID. Herstel de technische gegevens.');
+      } else if (kind !== 'schedules') {
+        throw new Error('Record zonder UUID. Herstel de technische gegevens.');
       }
       return record;
     });
   }
 
   /**
-   * @param {'schedules'|'intakes'} kind Te doorzoeken tabel.
+   * @param {'schedules'|'intakes'|'history'} kind Te doorzoeken tabel.
    * @param {string} id UUID van het record.
    * @returns {Object} Actueel record, inclusief tijdelijke _row.
    * @throws {Error} Als het record ontbreekt of de tabel niet kan worden gelezen.
@@ -100,6 +103,7 @@ var SheetStore = (function () {
    * @throws {Error} Bij een ontbrekend/gewijzigd record, onbekend veld of lees-/schrijffout; eerdere writes kunnen behouden zijn.
    */
   function patch(kind, record, changes) {
+    if (kind === 'history') throw new Error('History kan niet worden gewijzigd.');
     var current = record.ID ? find(kind, record.ID) : read(kind).find(function (item) { return item._row === record._row; });
     if (!current || (!record.ID && current.ID)) throw new Error('Record gewijzigd tijdens verwerking.');
     var table = table_(kind);
@@ -133,6 +137,60 @@ var SheetStore = (function () {
     SpreadsheetApp.flush();
   }
 
+  /**
+   * Schrijft een history-snapshot onder het lock van de aanroeper. ID wordt eerst gereserveerd,
+   * RecordedAt als laatste geschreven. Alleen een onvolledige rij met dezelfde ID wordt hervat.
+   * @param {Object} record Snapshot met vooraf duurzaam opgeslagen ID en RecordedAt.
+   * @returns {void}
+   * @throws {Error} Bij een conflicterende snapshot of schrijffout; een retry gebruikt dezelfde ID.
+   */
+  function appendHistory(record) {
+    var table = table_('history');
+    var existing = read('history').find(function (item) { return item.ID === record.ID; });
+    if (existing && existing.RecordedAt) {
+      Config.historyHeaders().forEach(function (key) {
+        var actual = existing[key], wanted = record[key];
+        if (key === 'StartDate') { actual = LocalTime.dateText(actual); wanted = LocalTime.dateText(wanted); }
+        if (actual instanceof Date) actual = actual.getTime();
+        if (wanted instanceof Date) wanted = wanted.getTime();
+        if (actual !== wanted) throw new Error('History-snapshot conflicteert met de toepassing.');
+      });
+      return;
+    }
+    var row = existing ? existing._row : table.sheet.getLastRow() + 1;
+    if (row > table.sheet.getMaxRows()) table.sheet.insertRowsAfter(table.sheet.getMaxRows(), 1);
+    table.sheet.getRange(row, table.schema.map.ID + 1).setValue(record.ID);
+    Config.historyHeaders().filter(function (key) { return key !== 'ID' && key !== 'RecordedAt'; })
+      .concat(['RecordedAt']).forEach(function (key) {
+        table.sheet.getRange(row, table.schema.map[key] + 1).setValue(safeValue_(record[key]));
+      });
+    SpreadsheetApp.flush();
+  }
+
+  /**
+   * Hervat het invoegen van uitsluitend de intake die in ApplicationState is vastgelegd.
+   * Reserveert eerst de UUID; schrijft de status als laatste. Aanroeper houdt het scriptlock.
+   * @param {Object} record Volledige nieuwe intake met duurzaam opgeslagen UUID en Date-velden.
+   * @returns {void}
+   * @throws {Error} Bij een conflicterend bestaand record of schrijffout.
+   */
+  function insertIntake(record) {
+    var table = table_('intakes');
+    var existing = read('intakes').find(function (item) { return item.ID === record.ID; });
+    if (existing && (existing.CompletedAt || existing.Status === 'COMPLETED')) return;
+    if (existing && existing.ScheduleID && existing.ScheduleID !== record.ScheduleID) {
+      throw new Error('Intake-UUID behoort tot een ander schema.');
+    }
+    var row = existing ? existing._row : table.sheet.getLastRow() + 1;
+    if (row > table.sheet.getMaxRows()) table.sheet.insertRowsAfter(table.sheet.getMaxRows(), 1);
+    table.sheet.getRange(row, table.schema.map.ID + 1).setValue(record.ID);
+    Object.keys(record).filter(function (key) { return key !== 'ID' && key !== 'Status'; })
+      .concat(['Status']).forEach(function (key) {
+        table.sheet.getRange(row, table.schema.map[key] + 1).setValue(safeValue_(record[key]));
+      });
+    SpreadsheetApp.flush();
+  }
+
   return { spreadsheet: spreadsheet, headers: headers, read: read, find: find,
-    patch: patch, appendIntakes: appendIntakes };
+    patch: patch, appendIntakes: appendIntakes, appendHistory: appendHistory, insertIntake: insertIntake };
 })();

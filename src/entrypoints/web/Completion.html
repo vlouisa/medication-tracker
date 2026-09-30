@@ -20,6 +20,10 @@
         <h1 id="heading"><?= model.completed ? 'Was al geregistreerd' : 'Inname registreren' ?></h1>
         <p><strong><?= model.medication ?></strong><br><?= model.dosage ?><br><?= model.administration ?></p>
         <p>Gepland: <?= model.scheduled ?></p>
+        <? if (model.cancelled) { ?>
+          <p>Dit geplande moment is vervallen door een plancorrectie. Heeft u de medicatie daadwerkelijk
+            ingenomen of toegediend? Dan kunt u die inname hieronder alsnog registreren.</p>
+        <? } ?>
         <p id="feedback" role="status" aria-live="polite"><?= model.completed ? 'Geregistreerd om ' + model.completedAt : 'Bevestig nadat u de medicatie heeft ingenomen of toegediend.' ?></p>
         <? if (!model.completed) { ?>
           <button id="complete" type="button" data-id="<?= model.id ?>">Ingenomen / toegediend</button>

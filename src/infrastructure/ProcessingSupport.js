@@ -38,11 +38,12 @@ var ProcessingSupport = (function () {
    * Schrijft technische foutmetadata naar het uitvoeringslog.
    * @param {string} event Vaste eventcode zonder gevoelige gegevens.
    * @param {string} [id] Record-UUID; laat weg als die onbekend is.
+   * @param {Object} [details] Technische metadata: uitsluitend IDs, aantallen, versie en vaste foutcodes.
    * @returns {void}
    */
-  function log(event, id) {
+  function log(event, id, details) {
     // Geen providerresponse, credentials, completion-links of medische gegevens loggen.
-    console.error(JSON.stringify({ event: event, recordId: id || '' }));
+    console.error(JSON.stringify({ event: event, recordId: id || '', details: details || {} }));
   }
 
   return { locked: locked, fingerprint: fingerprint, frozen: frozen, freeze: freeze, log: log };

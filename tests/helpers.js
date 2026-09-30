@@ -46,7 +46,7 @@ class Range {
 
 class Sheet {
   constructor(name, harness) {
-    Object.assign(this, { name, harness, data: [], maxRows: 1000, maxCols: 26, protections: [] });
+    Object.assign(this, { name, harness, data: [], maxRows: 1000, maxCols: 26, protections: [], rules: [] });
   }
   getRange(...args) { return new Range(this, ...args); }
   getLastRow() { return this.data.length; }
@@ -56,6 +56,8 @@ class Sheet {
   insertRowsAfter(_, count) { this.maxRows += count; }
   insertColumnsAfter(_, count) { this.maxCols += count; }
   setFrozenRows() {}
+  getConditionalFormatRules() { return this.rules.slice(); }
+  setConditionalFormatRules(rules) { this.rules = rules; }
   getProtections(type) { return this.protections.filter(p => p.type === type); }
   protect() { return this.protection('SHEET'); }
   protection(type, range) {
@@ -90,7 +92,11 @@ function harness() {
       setProperty: (key, value) => h.props.set(key, value) }) },
     Session: { getScriptTimeZone: () => 'Europe/Brussels' },
     SpreadsheetApp: { openById: () => h.book, flush: () => h.onFlush?.(),
-      ProtectionType: { RANGE: 'RANGE', SHEET: 'SHEET' }, newDataValidation: () => validation },
+      ProtectionType: { RANGE: 'RANGE', SHEET: 'SHEET' }, newDataValidation: () => validation,
+      newConditionalFormatRule: () => ({ whenFormulaSatisfied(formula) { this.formula = formula; return this; },
+        setBackground(color) { this.color = color; return this; }, setRanges(ranges) { this.ranges = ranges; return this; },
+        build() { return { formula: this.formula, color: this.color, ranges: this.ranges,
+          getBooleanCondition: () => ({ getCriteriaValues: () => [this.formula] }) }; } }) },
     LockService: { getScriptLock: () => ({ tryLock: () => { if (h.locked) return false; h.locked = true; return true; },
       releaseLock: () => { h.locked = false; } }) },
     UrlFetchApp: { fetch: (url, options) => {

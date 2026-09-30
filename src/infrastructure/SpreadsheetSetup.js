@@ -1,4 +1,17 @@
 var SpreadsheetSetup = (function () {
+  function statusStyle_(sheet, column, status, color) {
+    // De vaste markering maakt uitsluitend onze eigen regel herkenbaar bij herhaalde setup.
+    var marker = 'Medication Tracker: ' + status;
+    var formula = '=AND(INDIRECT(ADDRESS(ROW(),COLUMN()))="' + status + '",N("' + marker + '")=0)';
+    var rules = sheet.getConditionalFormatRules().filter(function (rule) {
+      var condition = rule.getBooleanCondition();
+      return !condition || condition.getCriteriaValues().indexOf(formula) === -1;
+    });
+    rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(formula).setBackground(color)
+      .setRanges([sheet.getRange(2, column, sheet.getMaxRows() - 1)]).build());
+    sheet.setConditionalFormatRules(rules);
+  }
+
   function protect_(sheet, range, description) {
     var type = range ? SpreadsheetApp.ProtectionType.RANGE : SpreadsheetApp.ProtectionType.SHEET;
     var existing = sheet.getProtections(type).find(function (item) { return item.getDescription() === description; });
@@ -19,17 +32,25 @@ var SpreadsheetSetup = (function () {
       var range = sheet.getRange(2, schema.map[name] + 1, sheet.getMaxRows() - 1);
       if (name === 'StartDate') range.setNumberFormat('yyyy-mm-dd');
       else if (/At$/.test(name)) range.setNumberFormat('dd-mm-yyyy hh:mm');
-      else if (name === 'DurationDays' || name === 'ReminderCount') range.setNumberFormat('0');
+      else if (name === 'DurationDays' || name === 'ReminderCount' || name === 'Version') range.setNumberFormat('0');
       else range.setNumberFormat('@');
-      if (isSchedule && ['ID', 'LastError', 'CreatedAt', 'UpdatedAt'].indexOf(name) !== -1) {
+      if (isSchedule && ['ID', 'LastError', 'CreatedAt', 'UpdatedAt', 'ApplicationState'].indexOf(name) !== -1) {
         protect_(sheet, range, 'Medication Tracker: ' + name);
       }
     });
-    if (!isSchedule) { protect_(sheet, null, 'Medication Tracker: intakes'); return; }
+    if (!isSchedule) {
+      if (required.indexOf('Version') === -1) {
+        statusStyle_(sheet, schema.map.Status + 1, 'CANCELLED', '#eeeeee');
+        sheet.getRange(1, schema.map.Status + 1).setNote('CANCELLED: vervallen door plancorrectie; een bestaande link kan daadwerkelijke inname nog registreren.');
+      }
+      protect_(sheet, null, required.indexOf('Version') === -1 ? 'Medication Tracker: intakes' : 'Medication Tracker: history');
+      return;
+    }
+    statusStyle_(sheet, schema.map.Status + 1, 'READY_FOR_RECONCILIATION', '#fff2cc');
     var status = sheet.getRange(2, schema.map.Status + 1, sheet.getMaxRows() - 1);
     status.setDataValidation(SpreadsheetApp.newDataValidation()
-      .requireValueInList(['DRAFT', 'READY', 'GENERATED', 'ERROR'], true).setAllowInvalid(false).build());
-    sheet.getRange(1, schema.map.Status + 1).setNote('Kies DRAFT tijdens invoer en READY om aan te bieden. GENERATED en ERROR worden door het systeem gezet. Wijzig geen aangeboden of gegenereerd schema.');
+      .requireValueInList(['DRAFT', 'READY', 'GENERATED', 'READY_FOR_RECONCILIATION', 'ERROR'], true).setAllowInvalid(false).build());
+    sheet.getRange(1, schema.map.Status + 1).setNote('Kies READY voor eerste generatie. Corrigeer een gegenereerd plan en kies READY_FOR_RECONCILIATION. Wijzig geen plan tijdens verwerking. Na ERROR: herstel invoer en bied met dezelfde verwerkingsstatus opnieuw aan.');
     sheet.getRange(1, schema.map.Times + 1).setNote('Dagelijkse tijden, bijvoorbeeld 08:00,14:00,20:00.');
     sheet.getRange(2, schema.map.StartDate + 1, sheet.getMaxRows() - 1).setDataValidation(
       SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(false).build());
@@ -49,12 +70,14 @@ var SpreadsheetSetup = (function () {
       var book = SpreadsheetApp.openById(config.spreadsheetId);
       var definitions = [
         { name: config.scheduleSheet, headers: Config.scheduleHeaders(), schedule: true },
-        { name: config.intakeSheet, headers: Config.intakeHeaders(), schedule: false }
+        { name: config.intakeSheet, headers: Config.intakeHeaders(), schedule: false },
+        { name: config.historySheet, headers: Config.historyHeaders(), schedule: false }
       ];
       // Eerst beide bestaande tabs controleren; afwijkingen niet automatisch migreren.
       definitions.forEach(function (definition) {
         var sheet = book.getSheetByName(definition.name);
-        if (sheet && sheet.getLastRow()) SheetStore.headers(sheet, definition.headers);
+        if (sheet && sheet.getLastRow()) SheetStore.headers(sheet, definition.schedule ?
+          definition.headers.filter(function (name) { return name !== 'ApplicationState'; }) : definition.headers);
       });
       if (book.getSpreadsheetTimeZone() !== config.timezone) {
         var hasData = definitions.some(function (definition) {
@@ -65,6 +88,15 @@ var SpreadsheetSetup = (function () {
         book.setSpreadsheetTimeZone(config.timezone);
       }
       definitions.forEach(function (definition) {
+        var existing = book.getSheetByName(definition.name);
+        if (definition.schedule && existing && existing.getLastRow()) {
+          var schema = SheetStore.headers(existing, []);
+          if (!Object.prototype.hasOwnProperty.call(schema.map, 'ApplicationState')) {
+            var column = existing.getLastColumn() + 1;
+            if (column > existing.getMaxColumns()) existing.insertColumnsAfter(existing.getMaxColumns(), 1);
+            existing.getRange(1, column).setValue('ApplicationState');
+          }
+        }
         configure_(book.getSheetByName(definition.name) || book.insertSheet(definition.name), definition.headers, definition.schedule);
       });
       SpreadsheetApp.flush();
@@ -83,6 +115,7 @@ var SpreadsheetSetup = (function () {
     return ProcessingSupport.locked(function () {
       SheetStore.read('schedules');
       SheetStore.read('intakes');
+      SheetStore.read('history');
       Config.pushover();
       Config.webUrl();
       var entries = [ ['processReadySchedules', 5], ['processPendingIntakeNotifications', 1] ];
