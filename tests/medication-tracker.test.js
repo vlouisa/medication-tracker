@@ -457,3 +457,46 @@ test('initial and repeated notifications use text form fields and default normal
   assert.equal(h.records('intakes')[0].Status, 'NOTIFIED');
   assert.equal(h.records('intakes')[0].ReminderCount, 1);
 });
+
+test('medication notification composes complete content without sending or changing the intake', () => {
+  const h = generated();
+  const intake = h.records('intakes')[0];
+  const before = { ...intake };
+  for (const [template, heading] of [
+    ['initial', 'Tijd voor uw medicatie.'],
+    ['reminder', 'Gemiste herinnering: nog geen inname geregistreerd.']
+  ]) {
+    const notification = h.context.MedicationNotification[template]({ ...intake, Status: undefined });
+    assert.equal(notification.title, 'Medicatie');
+    assert.equal(notification.message, heading + '\nDexa\n1 druppel\nrechteroog\nGepland: 29-09-2026 14:00');
+    assert.equal(notification.url, h.props.get('WEB_APP_URL') + '?action=complete&id=' + intake.ID);
+    assert.equal(notification.urlTitle, 'Inname registreren');
+  }
+  const withoutAdministration = h.context.MedicationNotification.initial({ ...intake, Administration: '' });
+  assert.equal(withoutAdministration.message, 'Tijd voor uw medicatie.\nDexa\n1 druppel\nGepland: 29-09-2026 14:00');
+  assert.deepEqual({ ...h.records('intakes')[0] }, before);
+  assert.equal(h.sent.length, 0);
+});
+
+test('pushover transports supplied content without intake data or web app configuration', () => {
+  const h = harness();
+  h.props.delete('WEB_APP_URL');
+  const notification = { title: 'Testtitel', message: 'Testbericht',
+    url: 'https://example.com/action', urlTitle: 'Openen' };
+  h.context.PushoverClient.send(notification);
+  const payload = h.sent[0].options.payload;
+  assert.equal(payload.title, notification.title);
+  assert.equal(payload.message, notification.message);
+  assert.equal(payload.url, notification.url);
+  assert.equal(payload.url_title, notification.urlTitle);
+});
+
+test('pushover enforces its message length limit before sending', () => {
+  const h = harness();
+  const notification = { title: 'Testtitel', message: 'x'.repeat(1024),
+    url: 'https://example.com/action', urlTitle: 'Openen' };
+  h.context.PushoverClient.send(notification);
+  assert.throws(() => h.context.PushoverClient.send({ ...notification, message: 'x'.repeat(1025) }),
+    /maximale berichtlengte/);
+  assert.equal(h.sent.length, 1);
+});

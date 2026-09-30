@@ -10,10 +10,11 @@ var NotificationService = (function () {
       LastError: 'Verzending gestart; bij onderbreking is de uitkomst onbekend.', UpdatedAt: new Date() });
     var accepted = false;
     try {
-      PushoverClient.send(intake);
+      var repeat = intake.Status === 'NOTIFIED';
+      var notification = repeat ? MedicationNotification.reminder(intake) : MedicationNotification.initial(intake);
+      PushoverClient.send(notification);
       accepted = true;
       var now = new Date();
-      var repeat = intake.Status === 'NOTIFIED';
       SheetStore.patch('intakes', intake, {
         NotifiedAt: intake.NotifiedAt || now,
         ReminderCount: repeat ? Number(intake.ReminderCount) + 1 : 0,

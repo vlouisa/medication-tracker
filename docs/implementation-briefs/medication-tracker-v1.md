@@ -115,6 +115,16 @@ onderzoekbare fouten. Er is geen automatische deblokkering of beheerknop in v1.
 
 ## Architectuur en concurrency
 
+De application-laag bepaalt de inhoud van medicatienotificaties. `MedicationNotification.initial(intake)`
+en `MedicationNotification.reminder(intake)` zijn aparte templates voor de eerste melding en herinneringen.
+Ze stellen de titel, tekst, registratielink en linktekst samen als `{ title, message, url, urlTitle }`,
+zonder de intakestatus te beoordelen. `NotificationService` kiest bij NOTIFIED de herinnering en anders
+de eerste melding voor een verschuldigde intake, en geeft het bericht aan `PushoverClient.send(notification)`.
+De infrastructure-client kent geen intakevelden of statussen: hij vertaalt het bericht naar Pushover-velden,
+controleert de berichtlengte en verzorgt credentials, HTTP-verzending en response-/foutafhandeling.
+Het samenstellen verstuurt niets en wijzigt geen gegevens; verzendblokkering en resultaatregistratie blijven
+de verantwoordelijkheid van `NotificationService`.
+
 Broncode staat onder src/domain, src/application, src/infrastructure en src/entrypoints.
 Services gebruiken IIFE-modules met expliciet publiek return-object. Geen Node-API's in runtimecode.
 Alle schrijvende flows gebruiken één scriptlock; notificaties houden de lock tijdens verzending vast.

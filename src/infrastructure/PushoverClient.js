@@ -5,15 +5,6 @@ var PushoverClient = (function () {
     return error;
   }
 
-  /**
-   * @param {{ID: string}} intake Intake met UUID voor de registratielink.
-   * @returns {string} Web App-link die de registratiepagina opent zonder de inname te registreren.
-   * @throws {Error} Bij een ontbrekende of ongeldige WEB_APP_URL.
-   */
-  function completionUrl(intake) {
-    return Config.webUrl() + '?action=complete&id=' + encodeURIComponent(intake.ID);
-  }
-
   function errorDetails_(body, credentials) {
     if (!Array.isArray(body.errors)) return '';
     return body.errors.filter(function (value) { return typeof value === 'string'; }).slice(0, 3)
@@ -29,30 +20,24 @@ var PushoverClient = (function () {
   }
 
   /**
-   * Verstuurt een notificatie met normale prioriteit; alleen NOTIFIED krijgt de herinneringstekst.
+   * Verstuurt een samengesteld bericht met normale prioriteit via Pushover.
    * Doet geen retry of Sheet-write. De aanroeper verzorgt verzendblokkering en resultaatregistratie.
    * Acceptatie door Pushover bewijst niet dat de telefoon de melding heeft getoond.
-   * @param {Object} intake Intake met ID, Status, ScheduledAt (Date) en medicatiesnapshot.
+   * @param {{title: string, message: string, url: string, urlTitle: string}} notification Bericht met tekst en actielink.
    * @returns {void} Alleen bij HTTP 200 en Pushover-status 1.
    * @throws {Error} Bij configuratie-, lengte- of verzendfouten. Verzendfouten dragen een veilige
    *   notificationMessage; bij transportfouten kan de melding toch geaccepteerd zijn.
    */
-  function send(intake) {
+  function send(notification) {
     var credentials = Config.pushover();
-    var repeat = intake.Status === 'NOTIFIED';
-    // Een vertraagde eerste melding blijft een eerste melding; alleen herhalingen zijn gemiste herinneringen.
-    var message = [repeat ? 'Gemiste herinnering: nog geen inname geregistreerd.' : 'Tijd voor uw medicatie.',
-      intake.Medication, intake.Dosage, intake.Administration,
-      'Gepland: ' + LocalTime.display(intake.ScheduledAt)].filter(Boolean).join('\n');
-    if (message.length > 1024) throw failure_('Notificatie overschrijdt de maximale berichtlengte.');
-    var url = completionUrl(intake);
+    if (notification.message.length > 1024) throw failure_('Notificatie overschrijdt de maximale berichtlengte.');
     var response;
     try {
       response = UrlFetchApp.fetch('https://api.pushover.net/1/messages.json', {
         method: 'post', muteHttpExceptions: true, followRedirects: false,
         // Zonder priority gebruikt Pushover normale prioriteit; alle formuliervelden zijn tekst.
-        payload: { token: credentials.token, user: credentials.user, title: 'Medicatie',
-          message: message, url: url, url_title: 'Inname registreren' }
+        payload: { token: credentials.token, user: credentials.user, title: notification.title,
+          message: notification.message, url: notification.url, url_title: notification.urlTitle }
       });
     } catch (error) {
       // Alleen classificeren; de oorspronkelijke exception kan gevoelige gegevens bevatten.
@@ -84,5 +69,5 @@ var PushoverClient = (function () {
     }
   }
 
-  return { send: send, completionUrl: completionUrl };
+  return { send: send };
 })();
