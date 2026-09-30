@@ -1,4 +1,8 @@
 var SheetStore = (function () {
+  /**
+   * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet} De geconfigureerde Spreadsheet.
+   * @throws {Error} Bij configuratie-/toegangsfouten of een afwijkende project- of Spreadsheet-tijdzone.
+   */
   function spreadsheet() {
     var config = Config.get();
     var book = SpreadsheetApp.openById(config.spreadsheetId);
@@ -8,6 +12,13 @@ var SheetStore = (function () {
     return book;
   }
 
+  /**
+   * Leest headers uit rij 1; extra kolommen zijn toegestaan.
+   * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet Te controleren tab.
+   * @param {string[]} required Verplichte headernamen.
+   * @returns {{names: string[], map: Object<string, number>}} Getrimde namen en nulgebaseerde kolomindices.
+   * @throws {Error} Bij dubbele of ontbrekende verplichte headers.
+   */
   function headers(sheet, required) {
     var values = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0]
       .map(function (value) { return String(value).trim(); });
@@ -33,6 +44,12 @@ var SheetStore = (function () {
     return { sheet: sheet, schema: headers(sheet, schedule ? Config.scheduleHeaders() : Config.intakeHeaders()) };
   }
 
+  /**
+   * Leest niet-lege records op headernaam; celwaarden behouden hun Apps Script-type.
+   * @param {'schedules'|'intakes'} kind Te lezen tabel.
+   * @returns {Object[]} Records met _row als tijdelijke, eengebaseerde rijlocatie; gebruik ID als identifier.
+   * @throws {Error} Bij ongeldige tabelstructuur, dubbele IDs of een intake zonder ID.
+   */
   function read(kind) {
     var table = table_(kind);
     if (table.sheet.getLastRow() < 2) return [];
@@ -55,6 +72,12 @@ var SheetStore = (function () {
     });
   }
 
+  /**
+   * @param {'schedules'|'intakes'} kind Te doorzoeken tabel.
+   * @param {string} id UUID van het record.
+   * @returns {Object} Actueel record, inclusief tijdelijke _row.
+   * @throws {Error} Als het record ontbreekt of de tabel niet kan worden gelezen.
+   */
   function find(kind, id) {
     var record = read(kind).find(function (item) { return item.ID === id; });
     if (!record) throw new Error('Record niet gevonden.');
@@ -66,7 +89,16 @@ var SheetStore = (function () {
     return typeof value === 'string' && /^[=+@-]/.test(value) ? "'" + value : value;
   }
 
-  /** Werkt uitsluitend opgegeven velden bij; rijnummers zijn tijdelijke locaties. */
+  /**
+   * Zoekt de actuele rij opnieuw en schrijft uitsluitend opgegeven velden, in sleutelvolgorde.
+   * Schrijft strings veilig als tekst en flusht de wijzigingen. Writes zijn niet atomair.
+   * De aanroeper verzorgt het lock; alleen voor een schema zonder ID wordt _row gebruikt.
+   * @param {'schedules'|'intakes'} kind Doeltabel.
+   * @param {Object} record Eerder gelezen record met ID of tijdelijke _row.
+   * @param {Object} changes Headernamen met nieuwe celwaarden.
+   * @returns {Object} Opnieuw gelezen record aangevuld met changes.
+   * @throws {Error} Bij een ontbrekend/gewijzigd record, onbekend veld of lees-/schrijffout; eerdere writes kunnen behouden zijn.
+   */
   function patch(kind, record, changes) {
     var current = record.ID ? find(kind, record.ID) : read(kind).find(function (item) { return item._row === record._row; });
     if (!current || (!record.ID && current.ID)) throw new Error('Record gewijzigd tijdens verwerking.');
@@ -79,6 +111,13 @@ var SheetStore = (function () {
     return Object.assign({}, current, changes);
   }
 
+  /**
+   * Voegt intakes in een batch toe en flusht; ontbrekende velden worden lege cellen.
+   * De aanroeper verzorgt het lock en controleert UUIDs en dubbele innamemomenten.
+   * @param {Object[]} records Intakes met Sheet-veldnamen; een lege lijst doet niets.
+   * @returns {void}
+   * @throws {Error} Bij lees-/schrijffouten; controleer opgeslagen records voordat opnieuw wordt toegevoegd.
+   */
   function appendIntakes(records) {
     if (!records.length) return;
     var table = table_('intakes');

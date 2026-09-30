@@ -30,6 +30,14 @@ var NotificationService = (function () {
     return true;
   }
 
+  /**
+   * Verwerkt verschuldigde meldingen op plandatum binnen de batch- en uitvoeringslimiet.
+   * Vergrendelt per intake en slaat een verzendblokkering op voordat Pushover wordt aangeroepen.
+   * Bij mislukte of onzekere verzending blijft de blokkering staan; recordfouten worden geisoleerd.
+   * Een bezet lock stopt de batch. Succesvolle verzending werkt status en herinneringsteller bij.
+   * @returns {void}
+   * @throws {Error} Bij configuratiefouten of fouten tijdens het inlezen van de kandidaten.
+   */
   function processPending() {
     var config = Config.get();
     // Configuratiefouten stoppen vóór er intakepogingen worden vastgelegd.

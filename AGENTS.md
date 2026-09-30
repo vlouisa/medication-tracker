@@ -149,6 +149,15 @@ Belangrijke conventies:
 - afsluitende `_` voor interne helperfuncties waar dit patroon wordt gebruikt;
 - JSDoc voor relevante publieke contracten en foutvoorwaarden.
 
+### Functiedocumentatie
+
+Gebruik Nederlandse JSDoc bij publieke modulefuncties en globale Apps Script-entrypoints. Documenteer interne helpers wanneer hun gedrag of voorwaarden niet vanzelfsprekend zijn.
+
+- Beschrijf de verantwoordelijkheid van de functie en gebruik `@param`, `@returns` en waar relevant `@throws` met passende types.
+- Benoem relevante voorwaarden en side effects, zoals Sheet-writes, notificaties, locks, tijdzones, idempotentie en mogelijke gedeeltelijke verwerking.
+- Houd de documentatie in overeenstemming met de implementatie: voeg bij nieuwe functies passende JSDoc toe en werk die bij wanneer een functiecontract verandert.
+- Houd de uitleg beknopt; herhaal geen vanzelfsprekende implementatiedetails.
+
 Voer geen formatting-only wijzigingen uit in bestanden die niet bij de taak betrokken zijn.
 
 ---

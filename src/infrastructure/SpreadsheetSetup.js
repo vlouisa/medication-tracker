@@ -37,6 +37,12 @@ var SpreadsheetSetup = (function () {
       SpreadsheetApp.newDataValidation().requireNumberGreaterThan(0).setAllowInvalid(false).build());
   }
 
+  /**
+   * Configureert tabs, opmaak, validatie en waarschuwingsbeveiliging onder het scriptlock.
+   * Controleert bestaande headers vooraf; wijzigt de tijdzone alleen als de doeltabs geen data bevatten.
+   * @returns {{configured: boolean}|{busy: boolean}} {configured: true}, of {busy: true} bij een bezet lock.
+   * @throws {Error} Bij ongeldige headers, bestaande data met afwijkende tijdzone of configuratie-/schrijffouten.
+   */
   function run() {
     return ProcessingSupport.locked(function () {
       var config = Config.get();
@@ -66,6 +72,13 @@ var SpreadsheetSetup = (function () {
     });
   }
 
+  /**
+   * Controleert configuratie en tabellen en beheert kloktriggers van het uitvoerende account.
+   * Maakt ontbrekende triggers aan (schema's: vijf minuten, notificaties: een minuut),
+   * verwijdert duplicaten en behoudt per handler de eerste bestaande kloktrigger.
+   * @returns {{installed: boolean}|{busy: boolean}} {installed: true}, of {busy: true} bij een bezet lock.
+   * @throws {Error} Bij ongeldige configuratie/tabellen of fouten in triggerbeheer.
+   */
   function installTriggers() {
     return ProcessingSupport.locked(function () {
       SheetStore.read('schedules');

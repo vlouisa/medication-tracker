@@ -1,6 +1,11 @@
 var MedicationPlan = (function () {
   function text_(value) { return String(value === null || value === undefined ? '' : value).trim(); }
 
+  /**
+   * @param {string} value Komma-gescheiden dagelijkse tijden in H:mm of HH:mm.
+   * @returns {string[]} Unieke, gesorteerde tijden in HH:mm.
+   * @throws {Error} Bij lege of ongeldige tijden.
+   */
   function parseTimes(value) {
     var times = text_(value).split(',').map(function (part) {
       var match = /^(\d{1,2}):(\d{2})$/.exec(part.trim());
@@ -12,6 +17,12 @@ var MedicationPlan = (function () {
     return Array.from(new Set(times)).sort();
   }
 
+  /**
+   * Valideert een kalenderdatum zonder lokale tijdzoneconversie.
+   * @param {string} value Datum in yyyy-MM-dd.
+   * @returns {string} De gevalideerde invoer.
+   * @throws {Error} Bij een onbestaande datum of een jaar buiten 1900 tot en met 9998.
+   */
   function calendarDate(value) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('StartDate moet een geldige datum zijn.');
     var date = new Date(value + 'T00:00:00Z');
@@ -22,7 +33,14 @@ var MedicationPlan = (function () {
     return value;
   }
 
-  /** Valideert het volledige schema voordat persistente intakes ontstaan. */
+  /**
+   * Valideert het volledige schema voordat persistente intakes ontstaan.
+   * @param {Object} record Schema met de oorspronkelijke Sheet-veldnamen.
+   * @param {string} dateText StartDate als lokale kalenderdatum in yyyy-MM-dd.
+   * @param {number} maxIntakes Maximumaantal innamemomenten voor dit schema.
+   * @returns {{medication: string, dosage: string, administration: string, startDate: string, durationDays: number, times: string[]}} Genormaliseerd plan.
+   * @throws {Error} Bij ongeldige invoer, te lange medicatietekst of overschrijding van maxIntakes.
+   */
   function normalize(record, dateText, maxIntakes) {
     var medication = text_(record.Medication);
     var dosage = text_(record.Dosage);
@@ -42,6 +60,13 @@ var MedicationPlan = (function () {
       startDate: calendarDate(dateText), durationDays: duration, times: times };
   }
 
+  /**
+   * Genereert momenten per kalenderdag, zodat klokwisselingen de dagelijkse tijden behouden.
+   * @param {Object} plan Gevalideerd resultaat van normalize.
+   * @param {function(string, string): Date} resolveLocal Zet yyyy-MM-dd en HH:mm om naar een absoluut tijdstip.
+   * @returns {Date[]} Alle geplande innamemomenten in dag- en tijdvolgorde.
+   * @throws {Error} Als resolveLocal een lokaal tijdstip niet kan omzetten.
+   */
   function moments(plan, resolveLocal) {
     var result = [];
     var date = new Date(plan.startDate + 'T00:00:00Z');
@@ -53,7 +78,14 @@ var MedicationPlan = (function () {
     return result;
   }
 
-  /** Controleert sleutels én snapshots; retourneert uitsluitend ontbrekende momenten. */
+  /**
+   * Controleert momenten en medicatiesnapshots zonder bestaande intakes te wijzigen.
+   * @param {Object} plan Gevalideerd resultaat van normalize.
+   * @param {Date[]} expected Alle verwachte momenten voor het plan.
+   * @param {Object[]} existing Bestaande intakes van uitsluitend dit schema.
+   * @returns {Date[]} Ontbrekende momenten in de volgorde van expected.
+   * @throws {Error} Bij dubbele/onverwachte momenten of afwijkende medicatiesnapshots.
+   */
   function missing(plan, expected, existing) {
     var wanted = new Set(expected.map(function (date) { return date.getTime(); }));
     var found = new Set();

@@ -42,6 +42,14 @@ var ScheduleService = (function () {
     }
   }
 
+  /**
+   * Genereert ontbrekende intakes voor READY-schema's binnen de batch- en uitvoeringslimiet.
+   * Vergrendelt per schema, bewaart een planvingerafdruk en controleert bestaande snapshots.
+   * Zet verwerkte schema's op GENERATED of bij een verwerkingsfout op ERROR waar mogelijk.
+   * Recordfouten worden geisoleerd; een bezet lock stopt de batch.
+   * @returns {void}
+   * @throws {Error} Bij configuratiefouten of fouten tijdens het inlezen van de kandidaten.
+   */
   function processReady() {
     var config = Config.get();
     var started = Date.now();

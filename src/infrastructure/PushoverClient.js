@@ -5,6 +5,11 @@ var PushoverClient = (function () {
     return error;
   }
 
+  /**
+   * @param {{ID: string}} intake Intake met UUID voor de registratielink.
+   * @returns {string} Web App-link die de registratiepagina opent zonder de inname te registreren.
+   * @throws {Error} Bij een ontbrekende of ongeldige WEB_APP_URL.
+   */
   function completionUrl(intake) {
     return Config.webUrl() + '?action=complete&id=' + encodeURIComponent(intake.ID);
   }
@@ -23,6 +28,15 @@ var PushoverClient = (function () {
       }).join('; ');
   }
 
+  /**
+   * Verstuurt een notificatie met normale prioriteit; alleen NOTIFIED krijgt de herinneringstekst.
+   * Doet geen retry of Sheet-write. De aanroeper verzorgt verzendblokkering en resultaatregistratie.
+   * Acceptatie door Pushover bewijst niet dat de telefoon de melding heeft getoond.
+   * @param {Object} intake Intake met ID, Status, ScheduledAt (Date) en medicatiesnapshot.
+   * @returns {void} Alleen bij HTTP 200 en Pushover-status 1.
+   * @throws {Error} Bij configuratie-, lengte- of verzendfouten. Verzendfouten dragen een veilige
+   *   notificationMessage; bij transportfouten kan de melding toch geaccepteerd zijn.
+   */
   function send(intake) {
     var credentials = Config.pushover();
     var repeat = intake.Status === 'NOTIFIED';

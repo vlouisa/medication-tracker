@@ -20,7 +20,11 @@ var Config = (function () {
     return value;
   }
 
-  /** Leest configuratie zonder secrets te loggen. */
+  /**
+   * Leest Script Properties en past standaardwaarden en numerieke grenzen toe.
+   * @returns {{spreadsheetId: string, timezone: string, scheduleSheet: string, intakeSheet: string, reminderLimit: number, reminderMinutes: number, maxIntakes: number, batchSize: number, executionBudgetMs: number}} Configuratie; interval in minuten en uitvoeringsbudget in milliseconden.
+   * @throws {Error} Bij een ontbrekende SPREADSHEET_ID of ongeldige herinneringsinstellingen.
+   */
   function get() {
     var properties = PropertiesService.getScriptProperties();
     return {
@@ -36,6 +40,10 @@ var Config = (function () {
     };
   }
 
+  /**
+   * @returns {string} Gevalideerde /exec-URL uit WEB_APP_URL.
+   * @throws {Error} Als de property ontbreekt of geen ondersteunde Apps Script Web App-URL is.
+   */
   function webUrl() {
     var value = required_(PropertiesService.getScriptProperties(), 'WEB_APP_URL');
     if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(value)) {
@@ -44,6 +52,10 @@ var Config = (function () {
     return value;
   }
 
+  /**
+   * @returns {{token: string, user: string}} Pushover-credentials uit Script Properties; nooit loggen.
+   * @throws {Error} Als PUSHOVER_API_TOKEN of PUSHOVER_USER_KEY ontbreekt of leeg is.
+   */
   function pushover() {
     var properties = PropertiesService.getScriptProperties();
     return {
@@ -53,6 +65,8 @@ var Config = (function () {
   }
 
   return { get: get, webUrl: webUrl, pushover: pushover,
+    /** @returns {string[]} Kopie van de verplichte schemaheaders in de standaardvolgorde. */
     scheduleHeaders: function () { return SCHEDULE_HEADERS.slice(); },
+    /** @returns {string[]} Kopie van de verplichte intakeheaders in de standaardvolgorde. */
     intakeHeaders: function () { return INTAKE_HEADERS.slice(); } };
 })();

@@ -1,4 +1,9 @@
-/** Toont alleen informatie; het openen van een link registreert geen inname. */
+/**
+ * Toont de bevestigingspagina zonder een inname te registreren.
+ * Ongeldige links en leesfouten worden als algemene foutmelding op de pagina getoond.
+ * @param {{parameter: Object<string, string>, parameters: Object<string, string[]>}} e Apps Script GET-event met action=complete en id.
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Registratiepagina of pagina met foutmelding.
+ */
 function doGet(e) {
   var template = HtmlService.createTemplateFromFile('entrypoints/web/Completion');
   template.model = null;
@@ -17,7 +22,12 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-/** Alleen aangeroepen door de bevestigingsknop binnen de afgeschermde Web App. */
+/**
+ * Registreert de bevestiging vanuit google.script.run in de afgeschermde Web App.
+ * @param {string} id UUID van de intake.
+ * @returns {Object} Paginamodel van CompletionView na idempotente registratie.
+ * @throws {Error} Algemene gebruikersmelding bij een mislukte registratie; technische details worden niet doorgestuurd.
+ */
 function completeIntake(id) {
   try { return CompletionView.fromResult(CompletionService.complete(id)); }
   catch (error) {

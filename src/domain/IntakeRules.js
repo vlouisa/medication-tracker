@@ -1,4 +1,13 @@
 var IntakeRules = (function () {
+  /**
+   * Bepaalt zonder mutaties of een eerste melding of herhaling verschuldigd is.
+   * Voltooide of geblokkeerde intakes worden overgeslagen; herhalingen tellen vanaf de laatste verzending.
+   * @param {Object} intake Intake met Sheet-veldnamen en Date-waarden voor tijdstippen.
+   * @param {Date} now Referentietijdstip.
+   * @param {{reminderLimit: number, reminderMinutes: number}} config Herhalingslimiet en interval in minuten.
+   * @returns {boolean} Of de intake nu voor verzending in aanmerking komt.
+   * @throws {Error} Bij een ongeldige plandatum of herinneringsregistratie die beoordeeld moet worden.
+   */
   function due(intake, now, config) {
     if (intake.NotificationBlockedAt || intake.CompletedAt) return false;
     if (!(intake.ScheduledAt instanceof Date) || !Number.isFinite(intake.ScheduledAt.getTime())) {
@@ -15,6 +24,13 @@ var IntakeRules = (function () {
     return count < config.reminderLimit && now.getTime() >= last.getTime() + config.reminderMinutes * 60000;
   }
 
+  /**
+   * Berekent de registratievelden zonder de intake te wijzigen.
+   * @param {Object} intake Intake met status PENDING, NOTIFIED of COMPLETED.
+   * @param {Date} now Tijdstip van registratie.
+   * @returns {?{Status: string, CompletedAt: Date, UpdatedAt: Date}} Wijzigingen, of null bij COMPLETED.
+   * @throws {Error} Als de status geen registratie toestaat.
+   */
   function completion(intake, now) {
     if (intake.Status === 'COMPLETED') return null;
     if (intake.Status !== 'PENDING' && intake.Status !== 'NOTIFIED') {

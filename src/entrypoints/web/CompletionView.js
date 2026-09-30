@@ -1,5 +1,9 @@
 var CompletionView = (function () {
-  /** Zet het registratieresultaat om naar het paginamodel voor de Web App. */
+  /**
+   * Zet het registratieresultaat om naar het paginamodel; formatteert tijdstippen in Europe/Brussels.
+   * @param {{intake: Object, already: boolean}} result Resultaat van CompletionService.
+   * @returns {{id: string, medication: string, dosage: string, administration: string, scheduled: string, completed: boolean, already: boolean, completedAt: string}} Paginamodel met een lege completedAt zolang registratie ontbreekt.
+   */
   function fromResult(result) {
     var intake = result.intake;
     return { id: intake.ID, medication: intake.Medication, dosage: intake.Dosage,

@@ -5,7 +5,12 @@ var CompletionService = (function () {
     }
   }
 
-  /** Levert de intake en registratiestatus zonder presentatieopmaak. */
+  /**
+   * Leest de intake en controleert of registratie mogelijk is; schrijft geen gegevens.
+   * @param {string} id UUID van de intake.
+   * @returns {{intake: Object, already: boolean}} Intake en indicatie of deze al voltooid is.
+   * @throws {Error} Bij een ongeldige UUID, ontbrekende intake, ongeldige status of leesfout.
+   */
   function inspect(id) {
     validateId_(id);
     var intake = SheetStore.find('intakes', id);
@@ -13,7 +18,13 @@ var CompletionService = (function () {
     return { intake: intake, already: intake.Status === 'COMPLETED' };
   }
 
-  /** Idempotente registratie; levert { intake, already }. GET roept deze functie nooit aan. */
+  /**
+   * Registreert de inname onder het scriptlock. Herhaalde registratie behoudt het oorspronkelijke tijdstip.
+   * Schrijft CompletedAt voor Status, zodat herstel na een gedeeltelijke write het tijdstip behoudt.
+   * @param {string} id UUID van de intake.
+   * @returns {{intake: Object, already: boolean}} Intake en indicatie of deze al voltooid was.
+   * @throws {Error} Bij ongeldige invoer/status, een bezet lock of een lees-/schrijffout.
+   */
   function complete(id) {
     validateId_(id);
     var result = ProcessingSupport.locked(function () {

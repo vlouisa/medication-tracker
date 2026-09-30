@@ -1,9 +1,17 @@
-/** Verwerkt uitsluitend aangeboden READY-schema's. */
+/**
+ * Globaal kloktrigger-entrypoint: genereert intakes voor aangeboden READY-schema's.
+ * @returns {void}
+ * @throws {Error} Bij configuratie- of leesfouten voor de batch; recordfouten worden in de service afgehandeld.
+ */
 function processReadySchedules() {
   ScheduleService.processReady();
 }
 
-/** Verstuurt eerste meldingen en maximaal het ingestelde aantal herhalingen. */
+/**
+ * Globaal kloktrigger-entrypoint: verstuurt verschuldigde meldingen en registreert het resultaat.
+ * @returns {void}
+ * @throws {Error} Bij configuratie- of leesfouten voor de batch; recordfouten worden in de service afgehandeld.
+ */
 function processPendingIntakeNotifications() {
   NotificationService.processPending();
 }
