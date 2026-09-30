@@ -1,6 +1,6 @@
 /** Toont alleen informatie; het openen van een link registreert geen inname. */
 function doGet(e) {
-  var template = HtmlService.createTemplateFromFile('entrypoints/Completion');
+  var template = HtmlService.createTemplateFromFile('entrypoints/web/Completion');
   template.model = null;
   template.error = '';
   try {

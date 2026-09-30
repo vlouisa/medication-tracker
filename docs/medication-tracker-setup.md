@@ -8,7 +8,7 @@ afzonderlijke handelingen; ze worden niet door lokale tests uitgevoerd.
 1. Gebruik één Apps Script-project en één Spreadsheet voor één persoon.
 2. Configureer clasp met `rootDir: src` indien clasp wordt gebruikt. Commit geen lokale deploymentconfiguratie.
 3. Upload de broncode alleen na expliciete opdracht. Houd bij upload de HTML-bestandsnaam
-   `entrypoints/Completion` aan; WebApp.js verwijst naar die Apps Script-bestandsnaam.
+   `entrypoints/web/Completion` aan; WebApp-entrypoint.js verwijst naar die Apps Script-bestandsnaam.
 4. Stel Script Properties in via de Apps Script-projectinstellingen:
 
 | Property | Betekenis |

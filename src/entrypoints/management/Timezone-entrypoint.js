@@ -1,23 +1,3 @@
-/** Verwerkt uitsluitend aangeboden READY-schema's. */
-function processReadySchedules() {
-  ScheduleService.processReady();
-}
-
-/** Verstuurt eerste meldingen en maximaal het ingestelde aantal herhalingen. */
-function processPendingIntakeNotifications() {
-  NotificationService.processPending();
-}
-
-/** Expliciete beheerhandeling: wijzigt de geconfigureerde Spreadsheet. */
-function setupSpreadsheet() {
-  return SpreadsheetSetup.run();
-}
-
-/** Expliciete beheerhandeling: installeert ontbrekende triggers voor dit account. */
-function installMedicationTriggers() {
-  return SpreadsheetSetup.installTriggers();
-}
-
 function checkTimezones() {
   const id = PropertiesService.getScriptProperties()
     .getProperty('SPREADSHEET_ID');

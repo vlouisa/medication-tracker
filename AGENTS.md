@@ -141,6 +141,7 @@ Volg de stijl van bestaande bestanden wanneer die aanwezig is. Gebruik anders de
 Belangrijke conventies:
 
 - Engelse identifiers;
+- JavaScript-bestanden die globale Apps Script-entrypoints definiëren, hebben een bestandsnaam die eindigt op `-entrypoint.js` (bijvoorbeeld `WebApp-entrypoint.js`);
 - voornamelijk Nederlandse comments en JSDoc;
 - `camelCase` voor functies en variabelen;
 - `PascalCase` voor klassen;
