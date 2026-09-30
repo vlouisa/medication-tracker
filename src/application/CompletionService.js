@@ -5,32 +5,26 @@ var CompletionService = (function () {
     }
   }
 
-  function view_(intake, already) {
-    return { id: intake.ID, medication: intake.Medication, dosage: intake.Dosage,
-      administration: intake.Administration, scheduled: LocalTime.display(intake.ScheduledAt),
-      completed: intake.Status === 'COMPLETED', already: Boolean(already),
-      completedAt: intake.CompletedAt ? LocalTime.display(intake.CompletedAt) : '' };
-  }
-
+  /** Levert de intake en registratiestatus zonder presentatieopmaak. */
   function inspect(id) {
     validateId_(id);
     var intake = SheetStore.find('intakes', id);
     IntakeRules.completion(intake, new Date());
-    return view_(intake, intake.Status === 'COMPLETED');
+    return { intake: intake, already: intake.Status === 'COMPLETED' };
   }
 
-  /** Idempotente registratie; GET roept deze functie nooit aan. */
+  /** Idempotente registratie; levert { intake, already }. GET roept deze functie nooit aan. */
   function complete(id) {
     validateId_(id);
     var result = ProcessingSupport.locked(function () {
       var intake = SheetStore.find('intakes', id);
       var changes = IntakeRules.completion(intake, new Date());
-      if (!changes) return view_(intake, true);
+      if (!changes) return { intake: intake, already: true };
       // Tijdstip eerst opslaan zodat herstel na een gedeeltelijke write dit kan behouden.
       if (intake.CompletedAt) changes.CompletedAt = intake.CompletedAt;
       intake = SheetStore.patch('intakes', intake, { CompletedAt: changes.CompletedAt,
         UpdatedAt: changes.UpdatedAt, Status: changes.Status });
-      return view_(intake, false);
+      return { intake: intake, already: false };
     });
     if (result && result.busy) throw new Error('Even bezig. Probeer de registratie nogmaals.');
     return result;
