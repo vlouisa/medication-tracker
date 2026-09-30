@@ -92,8 +92,8 @@ annulering van bestaande intakes. Aangeboden of gegenereerde schema's mogen niet
 - Eerste melding zodra ScheduledAt is bereikt; triggervertraging is mogelijk.
 - Standaard **3 extra herinneringen**, telkens **20 minuten na de laatste succesvolle melding**.
 - Configuratie: REMINDER_REPEAT_COUNT (standaard 3; 0–100), REMINDER_INTERVAL_MINUTES (standaard 20; 1–10080).
-- Verstreken meldingen krijgen de tekst “Gemiste herinnering: nog geen inname geregistreerd.”
-  De eerste melding gebruikt dit label vanaf één minuut vertraging; herhalingen gebruiken het altijd.
+- De eerste melding krijgt de tekst “Tijd voor uw medicatie.”, ook bij triggervertraging of na uitval.
+  Herhalingen krijgen de tekst “Gemiste herinnering: nog geen inname geregistreerd.”
 - Iedere melding bevat de oorspronkelijke geplande datum/tijd en een registratielink.
 - Na uitval maximaal één melding per intake per uitvoering; geen inhaalreeks.
 - Na completion stoppen meldingen; na het maximum blijft de status NOTIFIED en blijft registratie mogelijk.

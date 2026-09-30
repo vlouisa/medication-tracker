@@ -26,8 +26,8 @@ var PushoverClient = (function () {
   function send(intake) {
     var credentials = Config.pushover();
     var repeat = intake.Status === 'NOTIFIED';
-    var overdue = new Date().getTime() - intake.ScheduledAt.getTime() >= 60000;
-    var message = [repeat || overdue ? 'Gemiste herinnering: nog geen inname geregistreerd.' : 'Tijd voor uw medicatie.',
+    // Een vertraagde eerste melding blijft een eerste melding; alleen herhalingen zijn gemiste herinneringen.
+    var message = [repeat ? 'Gemiste herinnering: nog geen inname geregistreerd.' : 'Tijd voor uw medicatie.',
       intake.Medication, intake.Dosage, intake.Administration,
       'Gepland: ' + LocalTime.display(intake.ScheduledAt)].filter(Boolean).join('\n');
     if (message.length > 1024) throw failure_('Notificatie overschrijdt de maximale berichtlengte.');

@@ -135,10 +135,25 @@ test('repeat count and interval are configurable, including zero', () => {
   zero.context.processPendingIntakeNotifications(); assert.equal(zero.sent.length, 1);
 });
 
-test('downtime produces one overdue notification, no burst of repetitions', () => {
+for (const delay of [0, 59999, 60000, 60001, 120000]) {
+  test(`first notification keeps its initial message after ${delay} ms delay`, () => {
+    const h = generated(); h.now += delay;
+    h.context.processPendingIntakeNotifications();
+    assert.equal(h.sent.length, 1);
+    assert.equal(h.sent[0].options.payload.message.split('\n')[0], 'Tijd voor uw medicatie.');
+    assert.equal(h.records('intakes')[0].ReminderCount, 0);
+    h.now += 20 * 60000 - 1; h.context.processPendingIntakeNotifications();
+    assert.equal(h.sent.length, 1);
+    h.now += 1; h.context.processPendingIntakeNotifications();
+    assert.equal(h.sent.length, 2);
+    assert.match(h.sent[1].options.payload.message, /^Gemiste herinnering:/);
+  });
+}
+
+test('downtime produces one initial notification, no burst of repetitions', () => {
   const h = generated(); h.now += 86400000;
   h.context.processPendingIntakeNotifications(); h.context.processPendingIntakeNotifications();
-  assert.equal(h.sent.length, 1); assert.match(h.sent[0].options.payload.message, /Gemiste herinnering/);
+  assert.equal(h.sent.length, 1); assert.match(h.sent[0].options.payload.message, /^Tijd voor uw medicatie\./);
   h.now += 86400000; h.context.processPendingIntakeNotifications(); assert.equal(h.sent.length, 2);
 });
 
