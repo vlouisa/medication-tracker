@@ -23,6 +23,10 @@ function formatDate(date, timezone, pattern) {
 
 class Range {
   constructor(sheet, row, col, height = 1, width = 1) { Object.assign(this, { sheet, row, col, height, width }); }
+  getNumRows() { return this.height; }
+  getRow() { return this.row; }
+  getSheet() { return this.sheet; }
+  activate() { this.sheet.harness.activeRange = this; return this; }
   getValues() {
     return Array.from({ length: this.height }, (_, r) => Array.from({ length: this.width }, (_, c) =>
       this.sheet.data[this.row - 1 + r]?.[this.col - 1 + c] ?? ''));
@@ -49,6 +53,7 @@ class Sheet {
     Object.assign(this, { name, harness, data: [], maxRows: 1000, maxCols: 26, protections: [], rules: [] });
   }
   getRange(...args) { return new Range(this, ...args); }
+  getName() { return this.name; }
   getLastRow() { return this.data.length; }
   getLastColumn() { return Math.max(0, ...this.data.map(row => row.length)); }
   getMaxRows() { return this.maxRows; }
@@ -78,12 +83,22 @@ function harness() {
     static now() { return h.now; }
   }
   h.Date = ClockDate;
-  h.book = { timezone: 'Europe/Brussels', getSpreadsheetTimeZone() { return this.timezone; },
+  h.book = { id: 'test-spreadsheet', getId() { return this.id; }, timezone: 'Europe/Brussels', getSpreadsheetTimeZone() { return this.timezone; },
+    setActiveSheet(sheet) { h.activeSheet = sheet; },
     setSpreadsheetTimeZone(value) { this.timezone = value; },
     getSheetByName(name) { return h.sheets[name] || null; },
     insertSheet(name) { return h.sheets[name] = new Sheet(name, h); } };
   const validation = { requireValueInList() { return this; }, setAllowInvalid() { return this; },
     requireDate() { return this; }, requireNumberGreaterThan() { return this; }, build() { return this; } };
+  h.dialogs = []; h.menus = []; h.confirmation = 'YES';
+  function menu(name) {
+    return { name, items: [], addItem(label, handler) { this.items.push({ label, handler }); return this; },
+      addSeparator() { return this; }, addSubMenu(child) { this.items.push(child); return this; },
+      addToUi() { h.menus.push(this); } };
+  }
+  h.ui = { ButtonSet: { YES_NO: 'YES_NO', OK: 'OK' }, Button: { YES: 'YES', NO: 'NO' }, createMenu: menu,
+    alert: (...args) => { h.dialogs.push(args); h.onAlert?.(args); return h.confirmation; },
+    showSidebar: output => { h.sidebar = output; } };
   h.context = vm.createContext({ Date: ClockDate, console: { error: value => h.logs.push(value) },
     Utilities: { formatDate, getUuid: () => crypto.randomUUID(), DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
       computeDigest: (_, value) => crypto.createHash('sha256').update(value).digest(),
@@ -91,7 +106,10 @@ function harness() {
     PropertiesService: { getScriptProperties: () => ({ getProperty: key => h.props.get(key) ?? null,
       setProperty: (key, value) => h.props.set(key, value) }) },
     Session: { getScriptTimeZone: () => 'Europe/Brussels' },
-    SpreadsheetApp: { openById: () => h.book, flush: () => h.onFlush?.(),
+    SpreadsheetApp: { openById: () => h.book, getActiveSpreadsheet: () => h.book,
+      getActiveRange: () => h.activeRange || null,
+      getActiveRangeList: () => h.activeRange ? { getRanges: () => h.selectedRanges || [h.activeRange] } : null,
+      getUi: () => h.ui, flush: () => h.onFlush?.(),
       ProtectionType: { RANGE: 'RANGE', SHEET: 'SHEET' }, newDataValidation: () => validation,
       newConditionalFormatRule: () => ({ whenFormulaSatisfied(formula) { this.formula = formula; return this; },
         setBackground(color) { this.color = color; return this; }, setRanges(ranges) { this.ranges = ranges; return this; },
@@ -109,7 +127,7 @@ function harness() {
       newTrigger: handler => ({ timeBased() { return this; }, everyMinutes(minutes) { this.minutes = minutes; return this; },
         create() { h.triggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK', minutes: this.minutes }); } }) },
     HtmlService: { createTemplateFromFile: name => ({ evaluate() {
-      h.rendered = { name, model: this.model, error: this.error };
+      h.rendered = { name, model: this.model, error: this.error, mode: this.mode, kind: this.kind, id: this.id };
       return { setTitle() { return this; }, addMetaTag() { return this; } };
     } }) }
   });

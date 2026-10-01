@@ -9,6 +9,7 @@ var NotificationService = (function () {
     intake = SheetStore.patch('intakes', intake, { NotificationBlockedAt: new Date(),
       LastError: 'Verzending gestart; bij onderbreking is de uitkomst onbekend.', UpdatedAt: new Date() });
     var accepted = false;
+    var succeeded = false;
     try {
       var repeat = intake.Status === 'NOTIFIED';
       var notification = repeat ? MedicationNotification.reminder(intake) : MedicationNotification.initial(intake);
@@ -21,6 +22,7 @@ var NotificationService = (function () {
         LastReminderAt: now, UpdatedAt: now, Status: 'NOTIFIED', LastError: '',
         NotificationBlockedAt: ''
       });
+      succeeded = true;
     } catch (error) {
       ProcessingSupport.log('notification_failed', intake.ID);
       var message = accepted ? 'Pushover heeft het bericht geaccepteerd, maar het opslaan van het resultaat is mislukt.' :
@@ -28,7 +30,7 @@ var NotificationService = (function () {
       SheetStore.patch('intakes', intake, { LastError: message + ' Automatisch verzenden is geblokkeerd.',
         UpdatedAt: new Date() });
     }
-    return true;
+    return { succeeded: succeeded };
   }
 
   /**
@@ -36,7 +38,7 @@ var NotificationService = (function () {
    * Vergrendelt per intake en slaat een verzendblokkering op voordat Pushover wordt aangeroepen.
    * Bij mislukte of onzekere verzending blijft de blokkering staan; recordfouten worden geisoleerd.
    * Een bezet lock stopt de batch. Succesvolle verzending werkt status en herinneringsteller bij.
-   * @returns {void}
+   * @returns {{processed: number, failed: number, skipped: number, remaining: number, busy: boolean}} Resultaat van deze batch; processed telt volledig geregistreerde verzendingen.
    * @throws {Error} Bij configuratiefouten of fouten tijdens het inlezen van de kandidaten.
    */
   function processPending() {
@@ -45,19 +47,25 @@ var NotificationService = (function () {
     Config.pushover();
     Config.webUrl();
     var started = Date.now();
+    var summary = { processed: 0, failed: 0, skipped: 0, remaining: 0, busy: false };
     var candidates = SheetStore.read('intakes').filter(function (intake) {
       try { return IntakeRules.due(intake, new Date(), config); }
-      catch (error) { ProcessingSupport.log('invalid_notification_record', intake.ID); return false; }
+      catch (error) { summary.failed++; ProcessingSupport.log('invalid_notification_record', intake.ID); return false; }
     }).sort(function (a, b) { return a.ScheduledAt - b.ScheduledAt; });
     var sent = 0;
     for (var index = 0; index < candidates.length; index++) {
       if (sent >= config.batchSize || Date.now() - started >= config.executionBudgetMs) break;
       try {
         var result = ProcessingSupport.locked(function () { return processOne_(candidates[index].ID, config); });
-        if (result && result.busy) break;
-        if (result === true) sent++;
-      } catch (error) { ProcessingSupport.log('notification_processing_failed', candidates[index].ID); }
+        if (result && result.busy) { summary.busy = true; break; }
+        if (result && typeof result.succeeded === 'boolean') {
+          sent++;
+          if (result.succeeded) summary.processed++; else summary.failed++;
+        } else summary.skipped++;
+      } catch (error) { summary.failed++; ProcessingSupport.log('notification_processing_failed', candidates[index].ID); }
     }
+    summary.remaining = candidates.length - index;
+    return summary;
   }
 
   return { processPending: processPending };

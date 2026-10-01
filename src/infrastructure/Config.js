@@ -1,4 +1,5 @@
 var Config = (function () {
+  var TABLE_NAMES = { schedules: 'medication-schedules', intakes: 'medication-intakes', history: 'medication-schedule-history' };
   var SCHEDULE_HEADERS = ['ID', 'Medication', 'Dosage', 'Administration', 'StartDate',
     'DurationDays', 'Times', 'Status', 'LastError', 'CreatedAt', 'UpdatedAt', 'ApplicationState'];
   var HISTORY_HEADERS = ['ID', 'ScheduleID', 'Version', 'Medication', 'Dosage', 'Administration',
@@ -32,9 +33,9 @@ var Config = (function () {
     return {
       spreadsheetId: required_(properties, 'SPREADSHEET_ID'),
       timezone: 'Europe/Brussels',
-      scheduleSheet: 'medication-schedules',
-      intakeSheet: 'medication-intakes',
-      historySheet: 'medication-schedule-history',
+      scheduleSheet: TABLE_NAMES.schedules,
+      intakeSheet: TABLE_NAMES.intakes,
+      historySheet: TABLE_NAMES.history,
       reminderLimit: integer_(properties, 'REMINDER_REPEAT_COUNT', 3, 0, 100),
       reminderMinutes: integer_(properties, 'REMINDER_INTERVAL_MINUTES', 20, 1, 10080),
       maxIntakes: 2000,
@@ -68,6 +69,8 @@ var Config = (function () {
   }
 
   return { get: get, webUrl: webUrl, pushover: pushover,
+    /** @returns {Object<string, string>} Kopie van tabelnamen, ook beschikbaar bij ongeldige Script Properties. */
+    tableNames: function () { return Object.assign({}, TABLE_NAMES); },
     /** @returns {string[]} Kopie van de verplichte historyheaders. */
     historyHeaders: function () { return HISTORY_HEADERS.slice(); },
     /** @returns {string[]} Kopie van de verplichte schemaheaders in de standaardvolgorde. */

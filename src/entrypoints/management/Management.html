@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 16px; color: #23312b; }
+      h1 { font-size: 20px; } h2 { font-size: 15px; margin: 0 0 8px; }
+      section { border: 1px solid #d2ded6; border-radius: 6px; padding: 10px; margin: 12px 0; }
+      p, dd { white-space: pre-wrap; overflow-wrap: anywhere; } p { margin: 8px 0; }
+      dt { font-weight: 600; margin-top: 8px; } dd { margin: 2px 0; }
+      button { cursor: pointer; padding: 7px 10px; border: 1px solid #83968c; border-radius: 4px; background: #f4f8f5; }
+      button:disabled { opacity: .6; cursor: wait; } .attention { border-left: 4px solid #a56a00; }
+      #feedback { color: #7d3518; }
+    </style>
+  </head>
+  <body data-mode="<?= mode ?>" data-kind="<?= kind ?>" data-id="<?= id ?>">
+    <h1 id="title">Medication Tracker</h1>
+    <button id="refresh" type="button">Vernieuwen</button>
+    <p id="feedback" role="status" aria-live="polite"></p>
+    <main id="report"></main>
+    <script>
+      var refresh = document.getElementById('refresh');
+      var feedback = document.getElementById('feedback');
+      function element(tag, text, parent) {
+        var node = document.createElement(tag);
+        node.textContent = text;
+        parent.appendChild(node);
+        return node;
+      }
+      function failure(error) {
+        refresh.disabled = false;
+        feedback.textContent = error && error.message ? error.message : 'Het rapport kon niet worden geladen. Probeer opnieuw.';
+      }
+      function render(data) {
+        refresh.disabled = false;
+        feedback.textContent = '';
+        document.getElementById('title').textContent = data.title;
+        var report = document.getElementById('report');
+        report.replaceChildren();
+        data.notes.forEach(function (note) { element('p', note, report); });
+        data.checks.forEach(function (check) {
+          var section = element('section', '', report);
+          if (check.level !== 'goed') section.className = 'attention';
+          element('h2', check.label, section);
+          element('p', check.level + ': ' + check.detail, section);
+        });
+        data.records.forEach(function (record) {
+          var section = element('section', '', report);
+          element('h2', record.heading, section);
+          var list = element('dl', '', section);
+          record.fields.forEach(function (field) {
+            element('dt', field.label, list); element('dd', field.value || '—', list);
+          });
+          if (record.id && record.kind) {
+            var button = element('button', 'Selecteer rij', section);
+            button.type = 'button';
+            button.addEventListener('click', function () {
+              button.disabled = true;
+              google.script.run.withSuccessHandler(function () { button.disabled = false; feedback.textContent = 'Rij geselecteerd.'; })
+                .withFailureHandler(function (error) { button.disabled = false; failure(error); })
+                .selectManagementRecord(record.kind, record.id);
+            });
+          }
+        });
+      }
+      function load() {
+        refresh.disabled = true;
+        feedback.textContent = 'Laden…';
+        var args = document.body.dataset;
+        google.script.run.withSuccessHandler(render).withFailureHandler(failure)
+          .getManagementReport(args.mode, args.kind, args.id);
+      }
+      refresh.addEventListener('click', load);
+      load();
+    </script>
+  </body>
+</html>

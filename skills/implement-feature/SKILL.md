@@ -61,6 +61,18 @@ Controleer na implementatie waar relevant:
 
 Voer veilige relevante tests uit.
 
+## Uitroladvies
+
+Bepaal na iedere wijziging expliciet of een Web App-deployment nodig is. Controleer hiervoor de geraakte entrypoints en hun afhankelijkheden, inclusief gedeelde services, HTML, configuratie en het manifest.
+
+* Alleen lokale documentatie gewijzigd: geen `clasp push` of Web App-deployment nodig.
+* Alleen gedrag van triggers, het Spreadsheet-menu of de sidebar gewijzigd: `clasp push` volstaat. Vermeld waar nodig dat de Spreadsheet opnieuw moet worden geopend of autorisatie nodig is.
+* Gedrag van de gedeployde Web App gewijzigd, direct of via gedeelde code: naast `clasp push` is een nieuwe versie van de bestaande Web App-deployment nodig. Behoud de bestaande URL, zodat links in eerdere notificaties blijven werken.
+
+Vermeld eventuele aanvullende setup- of migratiestappen apart. Maak onderscheid tussen de huidige wijziging en eerdere wijzigingen die mogelijk nog niet zijn gedeployd; neem niet aan dat de remote versie gelijk is aan de lokale code.
+
+Dit advies geeft geen toestemming om `clasp push` of een deployment uit te voeren; daarvoor blijft een expliciete opdracht van de gebruiker nodig.
+
 ## Resultaat
 
 Rapporteer na afronding kort:
@@ -69,4 +81,5 @@ Rapporteer na afronding kort:
 * welke bestanden zijn gewijzigd;
 * welke tests zijn uitgevoerd;
 * welke relevante tests niet zijn uitgevoerd en waarom;
+* of `clasp push` volstaat, ook een Web App-deployment nodig is, of geen uitrol nodig is, met een korte reden;
 * eventuele resterende risico's of benodigde handmatige verificatie.

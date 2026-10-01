@@ -54,6 +54,29 @@ Een oude link blijft bruikbaar wanneer het moment inmiddels CANCELLED is. De pag
 vervallen is; bevestig alleen een daadwerkelijk uitgevoerde inname. Dit registreert niet automatisch een
 eventueel nieuw vervangend moment.
 
+## Beheermenu in de desktopbrowser
+
+Het gekoppelde Apps Script-project voegt bij het openen van de Spreadsheet het menu **Medication Tracker** toe.
+Open **Beheerstatus** voor configuratie, tijdzones, tabellen, zichtbare triggers en operationele problemen.
+Dit leest alleen gegevens. Credentials worden niet getoond en er worden geen testberichten verstuurd.
+
+Selecteer één gegevensrij en kies **Geselecteerd record inspecteren** of **Planhistorie bekijken**.
+Het zijpaneel blijft bij vernieuwen hetzelfde record op UUID tonen. **Selecteer rij** zoekt de actuele rijlocatie op.
+
+Onder **Verwerking** kunnen aangeboden schema's of verschuldigde notificaties direct worden verwerkt.
+Notificatieverwerking kan echte berichten versturen. Onder **Inrichting** staan setup en triggerinstallatie.
+Deze acties vragen eerst bevestiging en gebruiken dezelfde locks en regels als de normale verwerking.
+ERROR-schema's worden niet automatisch opnieuw aangeboden; verzendblokkeringen worden niet gewist.
+
+De resultaatmelding toont afgeronde, mislukte, overgeslagen en nog niet afgeronde kandidaten.
+Bij een fout kunnen deelstappen al uitgevoerd zijn. Gebruik Beheerstatus en recordinspectie voor vervolgacties.
+Een aanwezige trigger bewijst geen recente succesvolle uitvoering. Triggerinformatie betreft alleen het huidige account.
+
+Na upload: heropen de Spreadsheet. Autoriseer de nieuwe scope voor het zijpaneel indien gevraagd.
+Voor uitsluitend dit menu is geen nieuwe Web App-deployment of setup nodig; de eerdere upgrade naar
+plancorrecties heeft wel eigen uitrolvereisten. De normale mobiele bediening via Sheet-statussen blijft beschikbaar.
+Zie de [beheerbrief](implementation-briefs/management-menu.md) voor de volledige scope.
+
 ## Verzendfouten
 
 Een gevulde NotificationBlockedAt stopt automatisch verzenden voor die intake. LastError meldt de fout
