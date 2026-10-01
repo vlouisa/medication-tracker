@@ -127,7 +127,8 @@ function harness() {
       newTrigger: handler => ({ timeBased() { return this; }, everyMinutes(minutes) { this.minutes = minutes; return this; },
         create() { h.triggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK', minutes: this.minutes }); } }) },
     HtmlService: { createTemplateFromFile: name => ({ evaluate() {
-      h.rendered = { name, model: this.model, error: this.error, mode: this.mode, kind: this.kind, id: this.id };
+      h.rendered = { name, model: this.model, error: this.error, mode: this.mode, kind: this.kind, id: this.id,
+        todayUrl: this.todayUrl, url: this.url };
       return { setTitle() { return this; }, addMetaTag() { return this; } };
     } }) }
   });

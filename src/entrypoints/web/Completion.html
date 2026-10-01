@@ -29,6 +29,7 @@
           <button id="complete" type="button" data-id="<?= model.id ?>">Ingenomen / toegediend</button>
         <? } ?>
       <? } ?>
+      <? if (todayUrl) { ?><p><a href="<?= todayUrl ?>">Naar Vandaag</a></p><? } ?>
     </main>
     <script>
       var button = document.getElementById('complete');

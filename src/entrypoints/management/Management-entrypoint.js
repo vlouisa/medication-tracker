@@ -2,6 +2,9 @@
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('Medication Tracker')
+    .addItem('Vandaag-overzicht openen…', 'showTodayLink')
+    .addItem('Vandaag-link naar telefoon sturen…', 'manageSendTodayLink')
+    .addSeparator()
     .addItem('Beheerstatus…', 'showManagementStatus')
     .addItem('Geselecteerd record inspecteren…', 'showManagementRecord')
     .addItem('Planhistorie bekijken…', 'showManagementHistory')
@@ -32,6 +35,22 @@ function showManagementRecord() { managementPanel_('record'); }
 function showManagementHistory() { managementPanel_('history'); }
 /** Opent uitleg over normaal gebruik en herstel. @returns {void} */
 function showManagementHelp() { managementPanel_('help'); }
+
+/** Opent een zijpaneel met de vaste Vandaag-link; leest of wijzigt geen intakes. @returns {void} */
+function showTodayLink() {
+  try {
+    ManagementStore.assertTarget();
+    var template = HtmlService.createTemplateFromFile('entrypoints/management/TodayLink');
+    template.url = TodayService.url();
+    SpreadsheetApp.getUi().showSidebar(template.evaluate().setTitle('Vandaag'));
+  } catch (error) { SpreadsheetApp.getUi().alert(ManagementStore.safeText(error.message)); }
+}
+
+/** Verstuurt na bevestiging een echte Pushover-link; doet geen automatische retry. @returns {void} */
+function manageSendTodayLink() {
+  managementAction_('Vandaag-link versturen', 'Dit verstuurt een Pushover-bericht met een link naar Vandaag. Doorgaan?',
+    function () { return ProcessingSupport.locked(function () { TodayService.sendLink(); }); });
+}
 
 /**
  * Leest het rapport voor het beheerzijpaneel; doet geen operationele writes.

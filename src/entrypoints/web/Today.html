@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; background: #f1f5f4; color: #17352b; }
+      main { max-width: 34rem; margin: 1rem auto; padding: 1rem; }
+      h1 { font-size: 1.8rem; } h2 { font-size: 1.2rem; } p { line-height: 1.6; overflow-wrap: anywhere; }
+      button, select, .action { font: inherit; min-height: 3rem; padding: .7rem; border-radius: .5rem; }
+      button, .action { background: #17694e; color: white; border: 0; cursor: pointer; }
+      button:disabled { opacity: .65; } .action { display: inline-block; box-sizing: border-box; }
+      article { background: white; padding: 1rem; margin: 1rem 0; border-radius: .7rem; }
+      .controls { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+      #warning { color: #743a00; } #feedback { min-height: 1.6rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Vandaag</h1>
+      <p id="date"></p>
+      <p id="counts"></p>
+      <div class="controls">
+        <label for="filter">Toon</label>
+        <select id="filter">
+          <option value="all">Alles</option><option value="open">Open</option>
+          <option value="completed">Ingenomen</option><option value="cancelled">Geannuleerd</option>
+        </select>
+        <button id="refresh" type="button">Vernieuwen</button>
+      </div>
+      <p id="feedback" role="status" aria-live="polite">Laden…</p>
+      <p id="updated"></p>
+      <p id="warning" role="status"></p>
+      <section id="records" aria-label="Innamemomenten"></section>
+      <p>Geplande momenten in Europe/Brussels. Bewaar deze link om Vandaag rechtstreeks te openen.</p>
+    </main>
+    <script>
+      var model = null;
+      var refresh = document.getElementById('refresh');
+      var filter = document.getElementById('filter');
+      var feedback = document.getElementById('feedback');
+      function append(parent, tag, text) {
+        var node = document.createElement(tag);
+        node.textContent = text;
+        parent.appendChild(node);
+        return node;
+      }
+      function render() {
+        if (!model) return;
+        document.getElementById('date').textContent = model.date.split('-').reverse().join('-');
+        document.getElementById('counts').textContent = model.counts.open + ' open · ' + model.counts.completed +
+          ' ingenomen · ' + model.counts.cancelled + ' geannuleerd';
+        document.getElementById('updated').textContent = 'Laatst vernieuwd: ' + model.refreshedAt;
+        document.getElementById('warning').textContent = model.invalid ?
+          'Het overzicht is mogelijk onvolledig: ' + model.invalid + ' onleesbare record(s). Controleer Beheerstatus.' : '';
+        var list = document.getElementById('records');
+        list.replaceChildren();
+        var records = model.records.filter(function (record) { return filter.value === 'all' || record.group === filter.value; });
+        if (!records.length) append(list, 'p', model.invalid ? 'Geen toonbare momenten voor deze selectie.' :
+          model.records.length ? 'Geen momenten voor dit filter.' : 'Voor vandaag zijn geen innamemomenten gepland.');
+        records.forEach(function (record) {
+          var card = append(list, 'article', '');
+          append(card, 'h2', record.scheduled.slice(-5) + ' — ' + record.medication);
+          append(card, 'p', [record.dosage, record.administration].filter(Boolean).join(' · '));
+          append(card, 'p', record.label);
+          if (record.group === 'completed') append(card, 'p', record.completedAt ?
+            'Geregistreerd om ' + record.completedAt : 'Registratietijd ontbreekt.');
+          var link = append(card, 'a', record.group === 'open' ? 'Inname registreren' : 'Details bekijken');
+          link.href = record.url;
+          link.className = 'action';
+        });
+      }
+      function load() {
+        if (refresh.disabled) return;
+        refresh.disabled = true;
+        feedback.textContent = 'Laden…';
+        google.script.run.withSuccessHandler(function (result) {
+          model = result;
+          render();
+          feedback.textContent = '';
+          refresh.disabled = false;
+        }).withFailureHandler(function () {
+          feedback.textContent = model ? 'Vernieuwen mislukt. De getoonde gegevens kunnen verouderd zijn. Probeer opnieuw.' :
+            'Het overzicht kan niet worden geladen. Probeer opnieuw.';
+          refresh.disabled = false;
+        }).getTodayOverview();
+      }
+      refresh.addEventListener('click', load);
+      filter.addEventListener('change', render);
+      window.addEventListener('pageshow', load);
+      load();
+    </script>
+  </body>
+</html>

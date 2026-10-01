@@ -1,6 +1,6 @@
 # Beheer via custom menu
 
-Opgesteld: **2026-10-01**. Status: lokaal geimplementeerd na akkoord; nog niet uitgerold.
+Opgesteld: **2026-10-01**. Status: uitgerold op **2026-10-01**, bevestigd door de gebruiker.
 Het Apps Script-project is volgens de beheerder aan de Spreadsheet gekoppeld.
 
 ## Doel en scope

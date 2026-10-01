@@ -1,16 +1,23 @@
 /**
- * Toont de bevestigingspagina zonder een inname te registreren.
+ * Toont Vandaag of de bevestigingspagina zonder een inname te registreren.
  * Ongeldige links en leesfouten worden als algemene foutmelding op de pagina getoond.
- * @param {{parameter: Object<string, string>, parameters: Object<string, string[]>}} e Apps Script GET-event met action=complete en id.
+ * @param {{parameter: Object<string, string>, parameters: Object<string, string[]>}} e GET-event met action=today of action=complete en id.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Registratiepagina of pagina met foutmelding.
  */
 function doGet(e) {
+  var duplicate = e && e.parameters && Object.keys(e.parameters).some(function (key) { return e.parameters[key].length !== 1; });
+  if (e && e.parameter && e.parameter.action === 'today' && !duplicate) {
+    return HtmlService.createTemplateFromFile('entrypoints/web/Today').evaluate().setTitle('Vandaag — Medication Tracker')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  }
   var template = HtmlService.createTemplateFromFile('entrypoints/web/Completion');
   template.model = null;
   template.error = '';
+  template.todayUrl = '';
+  try { template.todayUrl = TodayService.url(); } catch (error) { /* Registratie blijft bruikbaar zonder navigatielink. */ }
   try {
     if (!e || !e.parameter || e.parameter.action !== 'complete' ||
-        (e.parameters && Object.keys(e.parameters).some(function (key) { return e.parameters[key].length !== 1; }))) {
+        duplicate) {
       throw new Error('Ongeldige registratielink.');
     }
     template.model = CompletionView.fromResult(CompletionService.inspect(e.parameter.id));
@@ -20,6 +27,19 @@ function doGet(e) {
   }
   return template.evaluate().setTitle('Inname registreren')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/**
+ * Leest het actuele Vandaag-overzicht vanuit de afgeschermde Web App, zonder writes.
+ * @returns {Object} JSON-geschikt overzicht, opnieuw bepaald op het moment van verversen.
+ * @throws {Error} Algemene gebruikersmelding bij een leesfout, zonder technische gegevens.
+ */
+function getTodayOverview() {
+  try { return TodayService.overview(); }
+  catch (error) {
+    ProcessingSupport.log('today_overview_failed');
+    throw new Error('Het overzicht kan niet worden geladen. Probeer opnieuw.');
+  }
 }
 
 /**

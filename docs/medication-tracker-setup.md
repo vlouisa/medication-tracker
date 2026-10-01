@@ -77,6 +77,26 @@ Voor uitsluitend dit menu is geen nieuwe Web App-deployment of setup nodig; de e
 plancorrecties heeft wel eigen uitrolvereisten. De normale mobiele bediening via Sheet-statussen blijft beschikbaar.
 Zie de [beheerbrief](implementation-briefs/management-menu.md) voor de volledige scope.
 
+## Vandaag op uw telefoon
+
+Open vanuit een normale medicatiemelding de registratiepagina en kies **Naar Vandaag**.
+Het overzicht toont de geplande momenten van vandaag, met filters voor open, ingenomen en
+geannuleerd. Via een moment opent u de bestaande registratiepagina. De link blijft ook na
+registratie beschikbaar. Voor dagelijks gebruik hoeft u de Spreadsheet niet te openen.
+
+Bewaar de Vandaag-link als bladwijzer; hij toont altijd de huidige dag. Gebruik op de telefoon
+hetzelfde Google-account als voor de afgeschermde Web App. Vanuit het Spreadsheet-menu kunt u
+het overzicht openen of na bevestiging een Pushover-link naar uw telefoon sturen.
+Er worden geen automatische dagelijkse overzichtsmeldingen verstuurd.
+
+Vandaag volgt de geplande datum in Europe/Brussels. Een gisteren gepland moment dat vandaag
+is geregistreerd valt buiten dit overzicht. Gebruik **Vernieuwen** om wijzigingen op te halen;
+bij een mislukte verversing kunnen de eerder getoonde gegevens verouderd zijn.
+
+Voor deze uitbreiding zijn **clasp push en een nieuwe versie van de bestaande Web App-deployment**
+nodig. Behoud de URL en heropen de Spreadsheet voor de menuopties. Geen nieuwe setup of migratie nodig.
+Zie de [implementation brief](implementation-briefs/today-overview.md).
+
 ## Verzendfouten
 
 Een gevulde NotificationBlockedAt stopt automatisch verzenden voor die intake. LastError meldt de fout

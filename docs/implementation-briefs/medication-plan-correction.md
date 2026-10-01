@@ -1,6 +1,6 @@
 # Plancorrectie, reconciliation en schedule history
 
-Opgesteld: **2026-09-30**. Status: lokaal geimplementeerd na akkoord; uitrol is een aparte beheerhandeling.
+Opgesteld: **2026-09-30**. Status: uitgerold op **2026-10-01**, bevestigd door de gebruiker.
 Bron: [oorspronkelijke brief](medication-plan-correction-original.md).
 
 ## Doel en gebruikersflow
