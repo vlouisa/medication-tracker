@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; background: #f1f5f4; color: #17352b; }
+      main { max-width: 30rem; margin: 1rem auto; padding: 1.5rem; background: white; border-radius: 1rem; }
+      h1 { font-size: 1.6rem; } p { line-height: 1.6; overflow-wrap: anywhere; }
+      button { width: 100%; padding: 1rem; margin: .5rem 0; border: 0; border-radius: .6rem;
+        background: #17694e; color: white; font: inherit; cursor: pointer; }
+      button:disabled { opacity: .65; } .warning { color: #743a00; }
+      @media (max-width: 32rem) { main { margin: .75rem; padding: 1rem; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Keuze over vervolgplan</h1>
+      <? if (error) { ?><p class="warning" role="alert"><?= error ?></p><? } ?>
+      <? if (model) { ?>
+        <p><strong><?= model.medication ?></strong><br><?= model.dosage ?><br><?= model.administration ?></p>
+        <p>Laatste geplande dag: <?= model.lastDate ?><br>Planversie: <?= model.version ?></p>
+        <? if (!model.current) { ?>
+          <p>Deze herinnering hoort bij een eerdere planversie. U kunt hier geen keuze meer maken. Gebruik de herinnering voor de actuele versie.</p>
+        <? } else if (!model.ready) { ?>
+          <p>Dit schema wordt verwerkt of vereist herstel. U kunt nu geen keuze vastleggen.</p>
+        <? } ?>
+        <? if (model.resolved) { ?>
+          <? if (model.resolution === 'CONTINUATION_CREATED') { ?>
+            <p>Er is een nieuw plan klaargezet als DRAFT. Schema-UUID: <?= model.continuationId ?></p>
+            <p>Controleer dit plan in de Spreadsheet, vul zo nodig de startdatum in en kies pas daarna READY.
+              De expiry-flow activeert het plan niet en maakt geen innamemomenten aan.</p>
+          <? } else { ?><p>Uw keuze is vastgelegd: geen nieuw plan nodig. De herinneringen zijn gestopt.</p><? } ?>
+        <? } else if (model.canChoose) { ?>
+          <p>Er is nog geen afgeronde keuze over een vervolgplan.</p>
+          <? if (model.expired) { ?><p>De automatische herinneringsperiode is verstreken. U kunt uw keuze hier nog vastleggen.</p><? } ?>
+          <? if (model.pending) { ?><p>Een eerdere keuze is nog niet volledig verwerkt. Herhaal de onderstaande actie om verder te gaan.</p><? } ?>
+          <? model.previous.forEach(function (previous) { ?>
+            <p class="warning">Uit planversie <?= previous.version ?> bestaat al een vervolgplan (<?= previous.status ?>),
+              UUID <?= previous.id ?>. Dit wordt niet automatisch aangepast of hergebruikt.</p>
+          <? }); ?>
+          <p>Een nieuw plan is alleen een voorstel. Het bestaande plan blijft ongewijzigd.
+            Heeft u zelf al een vervolgplan gemaakt, dan kunt u kiezen voor 'Geen nieuw plan nodig'.</p>
+          <? if (!model.pending || model.pendingChoice === 'CONTINUATION_CREATED') { ?>
+          <form method="post" action="<?= url ?>">
+            <input type="hidden" name="action" value="create-continuation">
+            <input type="hidden" name="id" value="<?= model.id ?>">
+            <input type="hidden" name="version" value="<?= model.version ?>">
+            <input type="hidden" name="token" value="<?= continuationToken ?>">
+            <button type="submit">Nieuw plan klaarzetten</button>
+          </form>
+          <? } ?>
+          <? if (!model.pending || model.pendingChoice === 'NO_CONTINUATION') { ?>
+          <form method="post" action="<?= url ?>" id="no-continuation">
+            <input type="hidden" name="action" value="no-continuation">
+            <input type="hidden" name="id" value="<?= model.id ?>">
+            <input type="hidden" name="version" value="<?= model.version ?>">
+            <input type="hidden" name="token" value="<?= noContinuationToken ?>">
+            <input type="hidden" name="confirmed" value="" id="confirmed">
+            <button type="submit">Geen nieuw plan nodig</button>
+          </form>
+          <? } ?>
+        <? } else { ?><p>Voor deze versie zijn nu geen expiry-acties beschikbaar.</p><? } ?>
+      <? } ?>
+      <p id="feedback" role="status" aria-live="polite"></p>
+      <? if (todayUrl) { ?><p><a href="<?= todayUrl ?>">Naar Vandaag</a></p><? } ?>
+    </main>
+    <script>
+      document.querySelectorAll('form').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+          if (form.id === 'no-continuation') {
+            if (!window.confirm('Er wordt geen vervolgplan klaargezet en de dagelijkse herinneringen stoppen. Doorgaan?')) {
+              event.preventDefault(); return;
+            }
+            document.getElementById('confirmed').value = 'YES';
+          }
+          document.querySelectorAll('button').forEach(function (button) { button.disabled = true; });
+          document.getElementById('feedback').textContent = 'Keuze verwerken…';
+        });
+      });
+      window.addEventListener('pageshow', function () {
+        document.querySelectorAll('button').forEach(function (button) { button.disabled = false; });
+      });
+    </script>
+  </body>
+</html>

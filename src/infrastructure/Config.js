@@ -1,9 +1,12 @@
 var Config = (function () {
-  var TABLE_NAMES = { schedules: 'medication-schedules', intakes: 'medication-intakes', history: 'medication-schedule-history' };
+  var TABLE_NAMES = { schedules: 'medication-schedules', intakes: 'medication-intakes', history: 'medication-schedule-history', expiry: 'medication-schedule-expiry' };
   var SCHEDULE_HEADERS = ['ID', 'Medication', 'Dosage', 'Administration', 'StartDate',
-    'DurationDays', 'Times', 'Status', 'LastError', 'CreatedAt', 'UpdatedAt', 'ApplicationState'];
+    'DurationDays', 'Times', 'Status', 'LastError', 'CreatedAt', 'UpdatedAt', 'ApplicationState',
+    'ExpiryReminderDaysBefore', 'SourceScheduleID', 'SourceScheduleVersion'];
   var HISTORY_HEADERS = ['ID', 'ScheduleID', 'Version', 'Medication', 'Dosage', 'Administration',
-    'StartDate', 'DurationDays', 'Times', 'ApplicationID', 'RecordedAt'];
+    'StartDate', 'DurationDays', 'Times', 'ApplicationID', 'RecordedAt', 'ExpiryReminderDaysBefore'];
+  var EXPIRY_HEADERS = ['ID', 'ScheduleID', 'ScheduleVersion', 'DecisionStatus', 'ReminderStatus',
+    'LastReminderAttemptAt', 'ResolvedAt', 'Resolution', 'ContinuationScheduleID', 'CreatedAt', 'UpdatedAt', 'LastError', 'ResolutionState'];
   var INTAKE_HEADERS = ['ID', 'ScheduleID', 'Medication', 'Dosage', 'Administration',
     'ScheduledAt', 'Status', 'NotifiedAt', 'CompletedAt', 'LastError', 'CreatedAt',
     'UpdatedAt', 'ReminderCount', 'LastReminderAt', 'NotificationBlockedAt'];
@@ -36,6 +39,7 @@ var Config = (function () {
       scheduleSheet: TABLE_NAMES.schedules,
       intakeSheet: TABLE_NAMES.intakes,
       historySheet: TABLE_NAMES.history,
+      expirySheet: TABLE_NAMES.expiry,
       reminderLimit: integer_(properties, 'REMINDER_REPEAT_COUNT', 3, 0, 100),
       reminderMinutes: integer_(properties, 'REMINDER_INTERVAL_MINUTES', 20, 1, 10080),
       maxIntakes: 2000,
@@ -69,6 +73,10 @@ var Config = (function () {
   }
 
   return { get: get, webUrl: webUrl, pushover: pushover,
+    /** @returns {number} Eerste lokale verzenduur voor expiry (0..23), standaard 8. @throws {Error} Bij ongeldige configuratie. */
+    expiryHour: function () { return integer_(PropertiesService.getScriptProperties(), 'EXPIRY_REMINDER_START_HOUR', 8, 0, 23); },
+    /** @returns {string[]} Kopie van system-managed expiryheaders. */
+    expiryHeaders: function () { return EXPIRY_HEADERS.slice(); },
     /** @returns {Object<string, string>} Kopie van tabelnamen, ook beschikbaar bij ongeldige Script Properties. */
     tableNames: function () { return Object.assign({}, TABLE_NAMES); },
     /** @returns {string[]} Kopie van de verplichte historyheaders. */

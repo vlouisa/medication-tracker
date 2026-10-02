@@ -1,10 +1,11 @@
 /**
- * Toont Vandaag of de bevestigingspagina zonder een inname te registreren.
+ * Toont Vandaag, een expiry-keuzepagina of de bevestigingspagina zonder writes.
  * Ongeldige links en leesfouten worden als algemene foutmelding op de pagina getoond.
- * @param {{parameter: Object<string, string>, parameters: Object<string, string[]>}} e GET-event met action=today of action=complete en id.
+ * @param {{parameter: Object<string, string>, parameters: Object<string, string[]>}} e GET-event met action=today, complete of schedule-expiry en bijbehorende identiteit.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Registratiepagina of pagina met foutmelding.
  */
 function doGet(e) {
+  if (e && e.parameter && e.parameter.action === 'schedule-expiry') return renderScheduleExpiry_(e);
   var duplicate = e && e.parameters && Object.keys(e.parameters).some(function (key) { return e.parameters[key].length !== 1; });
   if (e && e.parameter && e.parameter.action === 'today' && !duplicate) {
     return HtmlService.createTemplateFromFile('entrypoints/web/Today').evaluate().setTitle('Vandaag — Medication Tracker')

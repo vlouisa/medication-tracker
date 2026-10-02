@@ -30,18 +30,11 @@ var ScheduleApplication = (function () {
   }
 
   function history_(id) {
-    var rows = SheetStore.read('history').filter(function (item) { return item.ScheduleID === id; });
-    var versions = new Set(), applications = new Set();
-    rows.filter(function (row) { return row.RecordedAt; }).forEach(function (row) {
-      if (!Number.isInteger(row.Version) || row.Version < 1 || versions.has(row.Version) ||
-          !row.ApplicationID || applications.has(row.ApplicationID)) throw new Error('Ongeldige planhistorie.');
-      versions.add(row.Version); applications.add(row.ApplicationID);
-    });
-    return rows.filter(function (row) { return row.RecordedAt; }).sort(function (a, b) { return a.Version - b.Version; });
+    return ScheduleHistory.published(id);
   }
 
   function historyPlan_(row) {
-    return MedicationPlan.normalize(row, LocalTime.dateText(row.StartDate), Config.get().maxIntakes);
+    return ScheduleHistory.plan(row);
   }
 
   /**
@@ -87,7 +80,7 @@ var ScheduleApplication = (function () {
     return { ID: state.historyId, ScheduleID: id, Version: state.version, Medication: plan.medication,
       Dosage: plan.dosage, Administration: plan.administration, StartDate: plan.startDate,
       DurationDays: plan.durationDays, Times: plan.times.join(','), ApplicationID: state.id,
-      RecordedAt: new Date(state.appliedAt) };
+      ExpiryReminderDaysBefore: plan.expiryReminderDaysBefore || '', RecordedAt: new Date(state.appliedAt) };
   }
 
   /**

@@ -38,7 +38,8 @@ var SheetStore = (function () {
   function table_(kind) {
     var config = Config.get();
     var definitions = { schedules: [config.scheduleSheet, Config.scheduleHeaders()],
-      intakes: [config.intakeSheet, Config.intakeHeaders()], history: [config.historySheet, Config.historyHeaders()] };
+      intakes: [config.intakeSheet, Config.intakeHeaders()], history: [config.historySheet, Config.historyHeaders()],
+      expiry: [config.expirySheet, Config.expiryHeaders()] };
     var definition = definitions[kind];
     if (!definition) throw new Error('Onbekende tabel.');
     var name = definition[0];
@@ -150,6 +151,7 @@ var SheetStore = (function () {
     if (existing && existing.RecordedAt) {
       Config.historyHeaders().forEach(function (key) {
         var actual = existing[key], wanted = record[key];
+        if (key === 'ExpiryReminderDaysBefore') { actual = actual || ''; wanted = wanted || ''; }
         if (key === 'StartDate') { actual = LocalTime.dateText(actual); wanted = LocalTime.dateText(wanted); }
         if (actual instanceof Date) actual = actual.getTime();
         if (wanted instanceof Date) wanted = wanted.getTime();
@@ -162,7 +164,7 @@ var SheetStore = (function () {
     table.sheet.getRange(row, table.schema.map.ID + 1).setValue(record.ID);
     Config.historyHeaders().filter(function (key) { return key !== 'ID' && key !== 'RecordedAt'; })
       .concat(['RecordedAt']).forEach(function (key) {
-        table.sheet.getRange(row, table.schema.map[key] + 1).setValue(safeValue_(record[key]));
+        table.sheet.getRange(row, table.schema.map[key] + 1).setValue(safeValue_(record[key] === undefined ? '' : record[key]));
       });
     SpreadsheetApp.flush();
   }
@@ -191,6 +193,32 @@ var SheetStore = (function () {
     SpreadsheetApp.flush();
   }
 
-  return { spreadsheet: spreadsheet, headers: headers, read: read, find: find,
+  /**
+   * Voegt een vooraf geïdentificeerd expiry-record of vervolgplan hervatbaar toe.
+   * Schrijft ID eerst en de publicatiemarkering als laatste. Gepubliceerde rijen blijven ongewijzigd.
+   * Aanroeper houdt het scriptlock en controleert identiteit en inhoud van het teruggelezen record.
+   * @param {'expiry'|'schedules'} kind Doeltabel.
+   * @param {Object} record Volledige beginwaarden met duurzame UUID.
+   * @returns {Object} Teruggelezen record; CreatedAt publiceert expiry, Status publiceert een vervolgplan.
+   * @throws {Error} Bij ongeldige tabel of opslagfout; dezelfde UUID gebruiken bij hervatten.
+   */
+  function insertReserved(kind, record) {
+    if (kind !== 'expiry' && kind !== 'schedules') throw new Error('Ongeldige gereserveerde invoeging.');
+    var marker = kind === 'expiry' ? 'CreatedAt' : 'Status';
+    var existing = read(kind).find(function (item) { return item.ID === record.ID; });
+    if (existing && existing[marker]) return existing;
+    var table = table_(kind);
+    var row = existing ? existing._row : table.sheet.getLastRow() + 1;
+    if (row > table.sheet.getMaxRows()) table.sheet.insertRowsAfter(table.sheet.getMaxRows(), 1);
+    var keys = Object.keys(record).filter(function (key) { return key !== 'ID' && key !== marker; });
+    ['ID'].concat(keys, [marker]).forEach(function (key) {
+      if (!Object.prototype.hasOwnProperty.call(table.schema.map, key)) throw new Error('Onbekend veld: ' + key);
+      table.sheet.getRange(row, table.schema.map[key] + 1).setValue(safeValue_(record[key]));
+    });
+    SpreadsheetApp.flush();
+    return find(kind, record.ID);
+  }
+
+  return { spreadsheet: spreadsheet, headers: headers, read: read, find: find, insertReserved: insertReserved,
     patch: patch, appendIntakes: appendIntakes, appendHistory: appendHistory, insertIntake: insertIntake };
 })();

@@ -4,7 +4,8 @@ var ManagementStore = (function () {
     var definitions = {
       schedules: { name: names.schedules, headers: Config.scheduleHeaders() },
       intakes: { name: names.intakes, headers: Config.intakeHeaders() },
-      history: { name: names.history, headers: Config.historyHeaders() }
+      history: { name: names.history, headers: Config.historyHeaders() },
+      expiry: { name: names.expiry, headers: Config.expiryHeaders() }
     };
     if (!Object.prototype.hasOwnProperty.call(definitions, kind)) throw new Error('Onbekende tabel.');
     return definitions[kind];
@@ -62,7 +63,7 @@ var ManagementStore = (function () {
     var range = SpreadsheetApp.getActiveRange();
     if (!range || range.getNumRows() !== 1 || range.getRow() < 2) throw new Error('Selecteer precies één gegevensrij.');
     var name = range.getSheet().getName();
-    var kind = ['schedules', 'intakes', 'history'].find(function (value) { return definition_(value).name === name; });
+    var kind = ['schedules', 'intakes', 'history', 'expiry'].find(function (value) { return definition_(value).name === name; });
     if (!kind) throw new Error('Selecteer een rij in een Medication Tracker-tab.');
     var record = read(kind).find(function (item) { return item._row === range.getRow(); });
     if (!record || !record.ID) throw new Error('Deze rij heeft nog geen UUID. Bied een nieuw schema eerst via READY aan.');
@@ -93,7 +94,7 @@ var ManagementStore = (function () {
   function safeText(value) {
     var text = String(value === undefined || value === null ? '' : value);
     var props = PropertiesService.getScriptProperties();
-    ['PUSHOVER_API_TOKEN', 'PUSHOVER_USER_KEY'].map(function (key) { return props.getProperty(key); })
+    ['PUSHOVER_API_TOKEN', 'PUSHOVER_USER_KEY', 'EXPIRY_FORM_SECRET'].map(function (key) { return props.getProperty(key); })
       .filter(Boolean).sort(function (a, b) { return b.length - a.length; }).forEach(function (secret) {
         [secret, secret.trim(), encodeURIComponent(secret), encodeURIComponent(secret.trim())].filter(Boolean)
           .forEach(function (part) { text = text.split(part).join('[verwijderd]'); });

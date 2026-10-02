@@ -15,3 +15,6 @@ function processReadySchedules() {
 function processPendingIntakeNotifications() {
   NotificationService.processPending();
 }
+
+/** Verwerkt expiry-reminders per actuele planversie. @returns {void} @throws {Error} Bij globale configuratie- of leesfouten. */
+function processScheduleExpiryNotifications() { ScheduleExpiryService.processPending(); }

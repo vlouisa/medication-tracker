@@ -19,6 +19,8 @@ afzonderlijke handelingen; ze worden niet door lokale tests uitgevoerd.
 | WEB_APP_URL | De URL van de afgeschermde deployment, eindigend op `/exec` |
 | REMINDER_REPEAT_COUNT | Optioneel: 3; maximaal 100, 0 schakelt herhalingen uit |
 | REMINDER_INTERVAL_MINUTES | Optioneel: 20; minimaal 1, maximaal 10080 |
+| EXPIRY_REMINDER_START_HOUR | Optioneel: 8; eerste lokale verzenduur voor expiry, 0 t/m 23 |
+| EXPIRY_FORM_SECRET | Door setup aangemaakt formuliergeheim; niet tonen, delen of handmatig wijzigen |
 
 5. Voer `setupSpreadsheet()` expliciet uit. Dit maakt tabs, headers, opmaak, validatie en
    beschermingswaarschuwingen. De projecttimezone is Europe/Brussels. De setup stelt de Spreadsheet
@@ -99,6 +101,8 @@ Zie de [implementation brief](implementation-briefs/today-overview.md).
 
 ## Verzendfouten
 
+Onderstaande blokkering geldt voor intakeberichten. Expiry-reminders gebruiken een afzonderlijke pogingregistratie per kalenderdag.
+
 Een gevulde NotificationBlockedAt stopt automatisch verzenden voor die intake. LastError meldt de fout
 of een onderbroken poging. De blokkering wordt vóór de netwerkaanroep gezet en pas na volledig opgeslagen
 succesgegevens gewist. Bij een onderbreking kan een bericht wel of niet zijn afgeleverd.
@@ -131,6 +135,44 @@ doelplan opnieuw aan met dezelfde verwerkingsstatus; de toepassing maakt dezelfd
 immutable. Bewerk ApplicationState, intakes en history niet handmatig voor normale correcties.
 
 Zie de [uitgewerkte brief](implementation-briefs/medication-plan-correction.md) voor herstelregels en uitzonderingen.
+
+## Upgrade naar schedule expiry en vervolgplannen
+
+Deze uitbreiding vereist **clasp push, setupSpreadsheet en een nieuwe versie van de bestaande Web App-deployment**.
+Voer de stappen tijdens een beheerd uitrolmoment uit: tussen upload en setup ontbreken tijdelijk verplichte headers.
+Behoud de bestaande Web App-URL en toegang alleen voor uzelf. Voer daarna `installMedicationTriggers()` uit:
+er komt een derde trigger bij, `processScheduleExpiryNotifications`, iedere vijftien minuten.
+
+Setup voegt de nieuwe schedule- en historykolommen toe en maakt `medication-schedule-expiry` aan.
+Bestaande operationele cellen blijven behouden; er wordt geen history achteraf verzonnen.
+De vier besproken oudere schema's zijn volgens de gebruiker al handmatig van history voorzien.
+De nieuwe expiry-configuratie blijft voor bestaande plannen leeg, dus uitgeschakeld.
+
+### Inschakelen en gebruiken
+
+Vul `ExpiryReminderDaysBefore` in (1 t/m 365 kalenderdagen) en kies bij een toegepast plan
+`READY_FOR_RECONCILIATION`. Controleer alle planvelden: reconciliation past de volledige aangeboden inhoud toe.
+Leeg en 0 schakelen expiry uit. De reminders volgen uitsluitend de laatste gepubliceerde history-versie.
+
+Vanaf de threshold volgt maximaal één verzendpoging per lokale kalenderdag, standaard vanaf 08:00.
+Het tijdstip kan afwijken door triggervertraging. Reminders lopen tot en met zeven dagen na de laatste plandag.
+Daarna blijft de beslissing OPEN, maar is de reminderperiode EXPIRED. Een actuele link blijft bruikbaar.
+
+De mobiele melding opent een keuzepagina. **Nieuw plan klaarzetten** maakt een nieuw DRAFT met een bronrelatie;
+het oude plan en de intakes blijven ongewijzigd. Bij een keuze na afloop blijft de startdatum leeg.
+Controleer het voorstel in de Spreadsheet en bied het expliciet via READY aan als het uitgevoerd moet worden.
+**Geen nieuw plan nodig** vraagt bevestiging en stopt de reminders. Een afgehandelde keuze kan niet worden heropend.
+
+Na een notificatiefout wordt die dag niet opnieuw geprobeerd; de volgende dag mag wel binnen de reminderperiode.
+Bij een onderbroken keuze toont de pagina de oorspronkelijke actie om te hervatten. Herhaal die actie en rond
+de afhandeling af voordat u het bronplan corrigeert. Een oude versielink is altijd alleen-lezen.
+Een vervolgplan uit een eerdere versie wordt nooit automatisch aangepast of hergebruikt.
+
+Beheerstatus en recordinspectie tonen verzendfouten, onafgeronde verwerking en open/verlopen beslissingen.
+Wijzig geen expiry-statusvelden, ResolutionState, bronrelaties of history voor normaal gebruik.
+Een verlopen formulierbewijs vereist opnieuw openen van de herinneringslink; dit verandert de beslissing niet.
+
+Zie de [uitgewerkte brief](implementation-briefs/schedule-expiry.md) voor alle herstel- en versieregels.
 
 ## Lokale tests
 

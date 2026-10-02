@@ -28,5 +28,19 @@ var MedicationNotification = (function () {
       urlTitle: 'Inname registreren' };
   }
 
-  return { initial: initial, reminder: reminder };
+  /**
+   * @param {Object} snapshot Gepubliceerde planversie met ScheduleID en Version.
+   * @param {string} lastDate Laatste lokale plandag. @param {string} today Lokale datum.
+   * @returns {Object} Niet-medisch sturend bericht met versiegebonden keuzelink.
+   * @throws {Error} Bij ongeldige Web App-configuratie.
+   */
+  function expiry(snapshot, lastDate, today) {
+    var heading = today < lastDate ? 'Medicatieschema loopt bijna af' :
+      today === lastDate ? 'Medicatieschema eindigt vandaag' : 'Medicatieschema is afgelopen';
+    return { title: heading, message: [snapshot.Medication, 'Laatste geplande dag: ' + lastDate,
+      'Er is nog geen keuze gemaakt over een eventueel vervolgplan. Geef aan of een nieuw plan moet worden klaargezet.'].join('\n'),
+      url: Config.webUrl() + '?action=schedule-expiry&id=' + encodeURIComponent(snapshot.ScheduleID) + '&version=' + snapshot.Version,
+      urlTitle: 'Keuze over vervolgplan' };
+  }
+  return { initial: initial, reminder: reminder, expiry: expiry };
 })();

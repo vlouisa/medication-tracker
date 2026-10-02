@@ -38,7 +38,7 @@ var MedicationPlan = (function () {
    * @param {Object} record Schema met de oorspronkelijke Sheet-veldnamen.
    * @param {string} dateText StartDate als lokale kalenderdatum in yyyy-MM-dd.
    * @param {number} maxIntakes Maximumaantal innamemomenten voor dit schema.
-   * @returns {{medication: string, dosage: string, administration: string, startDate: string, durationDays: number, times: string[]}} Genormaliseerd plan.
+   * @returns {{medication: string, dosage: string, administration: string, startDate: string, durationDays: number, times: string[], expiryReminderDaysBefore?: number}} Genormaliseerd plan; uitgeschakelde expiry ontbreekt voor compatibiliteit met bestaande hashes.
    * @throws {Error} Bij ongeldige invoer, te lange medicatietekst of overschrijding van maxIntakes.
    */
   function normalize(record, dateText, maxIntakes) {
@@ -56,8 +56,25 @@ var MedicationPlan = (function () {
     if (!Number.isInteger(duration) || duration <= 0) throw new Error('DurationDays moet een positief geheel getal zijn.');
     var times = parseTimes(record.Times);
     if (duration * times.length > maxIntakes) throw new Error('Schema overschrijdt de limiet van ' + maxIntakes + ' intakes.');
-    return { medication: medication, dosage: dosage, administration: administration,
+    var expiry = expiryDays(record.ExpiryReminderDaysBefore);
+    var plan = { medication: medication, dosage: dosage, administration: administration,
       startDate: calendarDate(dateText), durationDays: duration, times: times };
+    // Uitgeschakeld blijft afwezig in JSON: bestaande planhashes en hersteljournals blijven geldig.
+    if (expiry) plan.expiryReminderDaysBefore = expiry;
+    return plan;
+  }
+
+  /**
+   * @param {*} value Leeg, nul of een geheel aantal kalenderdagen van 1 tot en met 365.
+   * @returns {number} Nul voor uitgeschakeld, anders het aantal dagen.
+   * @throws {Error} Bij een ongeldige waarde.
+   */
+  function expiryDays(value) {
+    if (value === undefined || value === null || typeof value === 'string' && !value.trim()) return 0;
+    if ((typeof value !== 'number' && typeof value !== 'string') || !Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > 365) {
+      throw new Error('ExpiryReminderDaysBefore moet leeg of een geheel getal van 0 tot en met 365 zijn.');
+    }
+    return Number(value);
   }
 
   /**
@@ -100,6 +117,6 @@ var MedicationPlan = (function () {
     return expected.filter(function (date) { return !found.has(date.getTime()); });
   }
 
-  return { parseTimes: parseTimes, calendarDate: calendarDate, normalize: normalize,
+  return { parseTimes: parseTimes, calendarDate: calendarDate, normalize: normalize, expiryDays: expiryDays,
     moments: moments, missing: missing };
 })();

@@ -37,6 +37,9 @@ var ManagementService = (function () {
     check('Pushover-configuratie', function () {
       Config.pushover(); return { detail: 'Beide credentials zijn ingevuld. Geldigheid bij Pushover is niet getest.' };
     });
+    check('Expiry-instellingen', function () {
+      return { detail: 'Expiry-reminders vanaf ' + Config.expiryHour() + ':00 lokale tijd.' };
+    });
     check('Web App-configuratie', function () {
       Config.webUrl(); return { detail: 'URL heeft het verwachte formaat. Bereikbaarheid en deploymentversie zijn niet getest.' };
     });
@@ -51,14 +54,14 @@ var ManagementService = (function () {
     });
     check('Kloktriggers', function () {
       var triggers = ScriptApp.getProjectTriggers();
-      var counts = ['processReadySchedules', 'processPendingIntakeNotifications'].map(function (name) {
+      var counts = ['processReadySchedules', 'processPendingIntakeNotifications', 'processScheduleExpiryNotifications'].map(function (name) {
         return triggers.filter(function (trigger) { return trigger.getHandlerFunction() === name && trigger.getEventType() === ScriptApp.EventType.CLOCK; }).length;
       });
       return { level: counts.every(function (count) { return count === 1; }) ? 'goed' : 'aandacht nodig',
-        detail: 'Schemaverwerking: ' + counts[0] + '; notificaties: ' + counts[1] + '. Verwacht één per soort. Het werkelijke interval is hier niet vastgesteld.' };
+        detail: 'Schemaverwerking: ' + counts[0] + '; notificaties: ' + counts[1] + '; expiry: ' + counts[2] + '. Verwacht één per soort. Het werkelijke interval is hier niet vastgesteld.' };
     });
     var tables = {};
-    ['schedules', 'intakes', 'history'].forEach(function (kind) {
+    ['schedules', 'intakes', 'history', 'expiry'].forEach(function (kind) {
       tables[kind] = check('Tabel: ' + kind, function () {
         var rows = ManagementStore.read(kind); return { detail: rows.length + ' records; vereiste headers aanwezig.', value: rows };
       });
@@ -75,7 +78,24 @@ var ManagementService = (function () {
       if (record.Status === 'ERROR' || record.ApplicationState) issue('schedules', record,
         record.Status === 'ERROR' ? 'Schema met fout' : 'Onafgeronde planverwerking',
         'Inspecteer het schema. Herstel bij gedeeltelijke verwerking eerst het aangeboden doelplan en bied met dezelfde verwerkingsstatus opnieuw aan.');
+      if (record.Status === 'GENERATED' && Number(record.ExpiryReminderDaysBefore) > 0 && tables.history &&
+          !tables.history.some(function (row) { return row.ScheduleID === record.ID && row.RecordedAt; })) {
+        issue('schedules', record, 'Expiry zonder toegepaste history-versie',
+          'Controleer alle planvelden en pas de expiry-instelling toe via READY_FOR_RECONCILIATION.');
+      }
     });
+    (tables.expiry || []).forEach(function (record) {
+      if (!record.CreatedAt || record.DecisionStatus === 'OPEN' && record.ResolutionState) {
+        issue('expiry', record, 'Onafgeronde expiry-verwerking',
+          record.CreatedAt ? 'Open de oorspronkelijke herinneringslink en herhaal dezelfde keuze. Wijzig geen herstelvelden.' :
+            'Een volgende expiry-uitvoering hervat de initialisatie voor een actuele versie.');
+      } else if (record.LastError) issue('expiry', record, 'Expiry-verzendfout',
+        'Vandaag wordt niet automatisch opnieuw verzonden. Een volgende kalenderdag mag een nieuwe poging volgen.');
+    });
+    if (tables.expiry) report.checks.push({ label: 'Expiry-beslissingen', level: 'informatie',
+      detail: tables.expiry.filter(function (row) { return row.DecisionStatus === 'OPEN'; }).length + ' open; ' +
+        tables.expiry.filter(function (row) { return row.DecisionStatus === 'OPEN' && row.ReminderStatus === 'EXPIRED'; }).length +
+        ' open met verstreken reminderperiode. Ook eerdere versies blijven voor audit bewaard; alleen actuele versies kunnen verzenden.' });
     (tables.intakes || []).forEach(function (record) {
       if (record.NotificationBlockedAt && !record.CompletedAt && record.Status !== 'COMPLETED') issue('intakes', record, 'Verzendblokkering',
         'Onderzoek de eerdere verzendpoging. Deze kan al bezorgd zijn; wis de blokkering niet blind.');
@@ -116,7 +136,11 @@ var ManagementService = (function () {
       ['Dosage', 'Dosering'], ['Administration', 'Toediening'], ['StartDate', 'Startdatum'], ['DurationDays', 'Duur in dagen'],
       ['Times', 'Tijden'], ['ScheduledAt', 'Gepland'], ['CompletedAt', 'Uitgevoerd'], ['NotifiedAt', 'Eerste melding'],
       ['LastReminderAt', 'Laatste melding'], ['ReminderCount', 'Herhalingen'], ['NotificationBlockedAt', 'Geblokkeerd sinds'],
-      ['Version', 'Versie'], ['RecordedAt', 'Versie vastgelegd'], ['LastError', 'Laatste fout']]
+      ['Version', 'Versie'], ['RecordedAt', 'Versie vastgelegd'], ['LastError', 'Laatste fout'],
+      ['ExpiryReminderDaysBefore', 'Expiry-voorwaarschuwing in dagen'], ['SourceScheduleID', 'Bronplan'], ['SourceScheduleVersion', 'Bronversie'],
+      ['ScheduleVersion', 'Planversie'], ['DecisionStatus', 'Beslissing'], ['ReminderStatus', 'Reminderperiode'],
+      ['LastReminderAttemptAt', 'Laatste verzendpoging'], ['Resolution', 'Keuze'], ['ResolvedAt', 'Afgehandeld'],
+      ['ContinuationScheduleID', 'Vervolgplan']]
       .filter(function (pair) { return Object.prototype.hasOwnProperty.call(record, pair[0]); });
     var report = { title: 'Recordinspectie', checks: [], records: [record_(kind, record, labels, 'Geselecteerd record')], notes: [] };
     if (record.ApplicationState) {
@@ -128,7 +152,7 @@ var ManagementService = (function () {
         report.notes.push('Onafgeronde toepassing. Hervatten via ' + (state.mode === 'initial' ? 'READY' : 'READY_FOR_RECONCILIATION') + '.');
         report.notes.push('Herstel eerst de aangeboden planvelden hieronder. Wijzig ApplicationState niet.');
         var plan = state.plan || {};
-        report.records.push({ heading: 'Aangeboden doelplan', fields: ['medication', 'dosage', 'administration', 'startDate', 'durationDays', 'times'].map(function (key) {
+        report.records.push({ heading: 'Aangeboden doelplan', fields: ['medication', 'dosage', 'administration', 'startDate', 'durationDays', 'times', 'expiryReminderDaysBefore'].map(function (key) {
           return { label: key, value: value_(Array.isArray(plan[key]) ? plan[key].join(',') : plan[key]) };
         }) });
       } catch (error) { report.notes.push('De herstelgegevens zijn onleesbaar. Laat deze onderzoeken; wis ApplicationState niet.'); }
@@ -136,6 +160,10 @@ var ManagementService = (function () {
     if (record.NotificationBlockedAt) report.notes.push('De verzenduitkomst kan onzeker zijn. Deze versie biedt geen automatische deblokkering.');
     if (record.Status === 'CANCELLED') report.notes.push('Dit moment krijgt geen meldingen. Een bestaande link kan daadwerkelijke inname nog registreren.');
     if (record.Status === 'COMPLETED') report.notes.push('Deze inname is geregistreerd; oorspronkelijke uitvoeringsgegevens blijven behouden.');
+    if (kind === 'expiry') {
+      report.notes.push('Alleen de actuele gepubliceerde versie kan worden afgehandeld. EXPIRED beëindigt meldingen, niet de open beslissing.');
+      if (record.ResolutionState && record.DecisionStatus === 'OPEN') report.notes.push('Herhaal de oorspronkelijk gekozen actie via de herinneringslink om de afhandeling te hervatten.');
+    }
     if (!report.notes.length) report.notes.push('Geen herstelactie op basis van dit record nodig. Gebruik de normale Sheet-statussen om een schema aan te bieden.');
     return report;
   }
@@ -154,7 +182,7 @@ var ManagementService = (function () {
     var rows = ManagementStore.read('history').filter(function (row) { return row.ScheduleID === scheduleId && row.RecordedAt; })
       .sort(function (a, b) { return Number(a.Version) - Number(b.Version); });
     var labels = [['Medication', 'Medicatie'], ['Dosage', 'Dosering'], ['Administration', 'Toediening'],
-      ['StartDate', 'Startdatum'], ['DurationDays', 'Duur in dagen'], ['Times', 'Tijden']];
+      ['StartDate', 'Startdatum'], ['DurationDays', 'Duur in dagen'], ['Times', 'Tijden'], ['ExpiryReminderDaysBefore', 'Expiry-voorwaarschuwing in dagen']];
     var records = rows.map(function (row, index) {
       var entry = record_('history', row, [['Version', 'Versie'], ['RecordedAt', 'Vastgelegd']].concat(labels), 'Planversie ' + row.Version);
       var before = rows[index - 1];

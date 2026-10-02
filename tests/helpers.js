@@ -89,7 +89,7 @@ function harness() {
     getSheetByName(name) { return h.sheets[name] || null; },
     insertSheet(name) { return h.sheets[name] = new Sheet(name, h); } };
   const validation = { requireValueInList() { return this; }, setAllowInvalid() { return this; },
-    requireDate() { return this; }, requireNumberGreaterThan() { return this; }, build() { return this; } };
+    requireDate() { return this; }, requireNumberGreaterThan() { return this; }, requireFormulaSatisfied() { return this; }, build() { return this; } };
   h.dialogs = []; h.menus = []; h.confirmation = 'YES';
   function menu(name) {
     return { name, items: [], addItem(label, handler) { this.items.push({ label, handler }); return this; },
@@ -102,6 +102,7 @@ function harness() {
   h.context = vm.createContext({ Date: ClockDate, console: { error: value => h.logs.push(value) },
     Utilities: { formatDate, getUuid: () => crypto.randomUUID(), DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
       computeDigest: (_, value) => crypto.createHash('sha256').update(value).digest(),
+      computeHmacSha256Signature: (value, key) => crypto.createHmac('sha256', key).update(value).digest(),
       base64EncodeWebSafe: bytes => Buffer.from(bytes).toString('base64url') },
     PropertiesService: { getScriptProperties: () => ({ getProperty: key => h.props.get(key) ?? null,
       setProperty: (key, value) => h.props.set(key, value) }) },
@@ -128,7 +129,7 @@ function harness() {
         create() { h.triggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK', minutes: this.minutes }); } }) },
     HtmlService: { createTemplateFromFile: name => ({ evaluate() {
       h.rendered = { name, model: this.model, error: this.error, mode: this.mode, kind: this.kind, id: this.id,
-        todayUrl: this.todayUrl, url: this.url };
+        todayUrl: this.todayUrl, url: this.url, continuationToken: this.continuationToken, noContinuationToken: this.noContinuationToken };
       return { setTitle() { return this; }, addMetaTag() { return this; } };
     } }) }
   });

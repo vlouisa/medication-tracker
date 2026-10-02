@@ -158,7 +158,7 @@ test('manual schedule processing keeps ERROR untouched and installation remains 
   const h = harness(); h.addSchedule({ Times: 'invalid' }); h.context.manageProcessSchedules();
   assert.match(h.dialogs.at(-1)[1], /Mislukt: 1/);
   const before = unchanged(h); h.context.manageProcessSchedules(); assert.equal(unchanged(h), before);
-  h.context.manageInstallTriggers(); h.context.manageInstallTriggers(); assert.equal(h.triggers.length, 2);
+  h.context.manageInstallTriggers(); h.context.manageInstallTriggers(); assert.equal(h.triggers.length, 3);
 });
 
 test('setup busy result is shown as busy instead of success', () => {

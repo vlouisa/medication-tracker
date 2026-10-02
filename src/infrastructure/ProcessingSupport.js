@@ -46,5 +46,17 @@ var ProcessingSupport = (function () {
     console.error(JSON.stringify({ event: event, recordId: id || '', details: details || {} }));
   }
 
-  return { locked: locked, fingerprint: fingerprint, frozen: frozen, freeze: freeze, log: log };
+  /**
+   * Leidt een stabiele UUID af voor hervatbare creatie zonder afzonderlijke reserveringswrite.
+   * @param {string} key Namenruimte plus functionele identiteit; bevat geen rijnummer.
+   * @returns {string} UUID met versie-8-bits, gebaseerd op SHA-256.
+   */
+  function identityUuid(key) {
+    var hex = Array.from(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, key, Utilities.Charset.UTF_8))
+      .map(function (byte) { return (byte & 255).toString(16).padStart(2, '0'); }).join('').slice(0, 32);
+    return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-8' + hex.slice(13, 16) + '-' +
+      ((parseInt(hex[16], 16) & 3) | 8).toString(16) + hex.slice(17, 20) + '-' + hex.slice(20);
+  }
+
+  return { locked: locked, fingerprint: fingerprint, frozen: frozen, freeze: freeze, log: log, identityUuid: identityUuid };
 })();
