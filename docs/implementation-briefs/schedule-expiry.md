@@ -1,6 +1,6 @@
 # Schedule expiry en vervolgplan
 
-Opgesteld: **2026-10-02**. Status: lokaal geïmplementeerd na akkoord; nog niet uitgerold.
+Opgesteld: **2026-10-02**. Status: uitgerold op 2026-10-02, volgens bevestiging van de gebruiker.
 Bron: [oorspronkelijke brief](schedule-expiry-original.md), ontvangen op 2026-10-02.
 
 ## Doel en besluiten

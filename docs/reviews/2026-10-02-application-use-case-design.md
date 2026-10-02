@@ -4,7 +4,15 @@ Datum: 2026-10-02
 
 Scope: `src/application/`, met relevante entrypoints, domeinregels en infrastructuur als context.
 
-Dit is een statische designbeoordeling. Er is geen applicatiecode gewijzigd en er zijn geen tests of productieacties uitgevoerd. De aanbevelingen zijn nog niet geïmplementeerd.
+Dit is een statische designbeoordeling. Tijdens de beoordeling is geen applicatiecode gewijzigd en zijn geen tests of productieacties uitgevoerd. Onderstaande bevindingen beschrijven de situatie vóór de vervolgwijziging.
+
+## Opvolging op 2026-10-02
+
+Advies 1 is geïmplementeerd in commit `bf7d3a9`: `ScheduleApplication.apply` orkestreert nu de interne helpers `validateApplicationState_`, `applyIntakeChanges_`, `verifyIntakeChanges_` en `publishApplication_`. De bestaande writevolgorde, journalfasen en hervatvoorwaarden zijn behouden; de helpers documenteren hun voorwaarden en side effects.
+
+De gebruiker heeft bevestigd dat alle wijzigingen live zijn gedeployed. `git diff --check` slaagde vóór de commit. De syntaxcheck kon niet worden uitgevoerd omdat Node.js ontbrak; lokale tests zijn niet uitgevoerd. Het productiegedrag is niet onafhankelijk gecontroleerd.
+
+Adviezen 2 tot en met 5 blijven open.
 
 ## Algemene beoordeling
 

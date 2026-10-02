@@ -4,4 +4,4 @@ Deze map bevat beoordelingen van het ontwerp en de code van Medication Tracker. 
 
 | Datum | Review | Onderwerp |
 | --- | --- | --- |
-| 2026-10-02 | [Application- en use-case-laag](2026-10-02-application-use-case-design.md) | Sterke punten en gerichte verbeteringen voor verantwoordelijkheden, herstelworkflows en servicecontracten. |
+| 2026-10-02 | [Application- en use-case-laag](2026-10-02-application-use-case-design.md) | Advies 1 geïmplementeerd en volgens gebruiker live gedeployed; adviezen 2–5 blijven open. |

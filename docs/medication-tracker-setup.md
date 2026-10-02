@@ -1,5 +1,12 @@
 # Medication Tracker — inrichting en beheer
 
+## Actuele uitrolstatus
+
+Op 2026-10-02 heeft de gebruiker bevestigd dat alle actuele wijzigingen live zijn gedeployed,
+inclusief schedule expiry, vervolgplannen en de refactor van `ScheduleApplication` (`bf7d3a9`).
+Setup, geïnstalleerde triggers en productiegedrag zijn daarbij niet onafhankelijk gecontroleerd.
+De onderstaande instructies blijven van toepassing bij inrichting en toekomstige upgrades.
+
 ## Voorbereiding
 
 De app is lokaal geïmplementeerd. Uploaden, deployen, triggers installeren en live testen zijn
